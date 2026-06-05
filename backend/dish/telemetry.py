@@ -179,6 +179,7 @@ def _fetch_status() -> dict:
         "direction_elevation": status.get("direction_elevation"),
         "gps_ready":       status.get("gps_ready"),
         "gps_sats":        status.get("gps_sats"),
+        "gps_enabled":     status.get("gps_enabled"),
         "dish_temp_c":     dish_temp,
         "board_temp_c":    board_temp,
         "alerts":          active_alerts,

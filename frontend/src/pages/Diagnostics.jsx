@@ -7,49 +7,91 @@ import TempGauge         from '../components/TempGauge'
 
 // ── GPS panel ─────────────────────────────────────────────────────────────────
 
-function GpsPanel({ gps, onEnable, onDisable, busy, result, errMsg }) {
+const REASON_MSG = {
+  PERMISSION_DENIED: {
+    text: 'The dish requires authorisation from the Starlink app before it will share location data. The API toggle above may not be sufficient on its own.',
+    hint: 'After clicking Enable GPS, also open the Starlink app → Settings and confirm GPS / location sharing is on there.',
+    color: '#f59e0b',
+  },
+  NO_FIX: {
+    text: 'GPS hardware is working but has not obtained a position fix yet.',
+    hint: 'This usually resolves within 1–2 minutes of the dish powering on outdoors.',
+    color: '#4d9fff',
+  },
+  GPS_NOT_VALID: {
+    text: 'GPS hardware is not reporting a valid satellite fix.',
+    hint: 'Check that the dish has a clear view of the sky.',
+    color: '#ef4444',
+  },
+  GRPC_ERROR: {
+    text: 'A communication error occurred while reading location data.',
+    hint: 'Check the backend logs for details.',
+    color: '#ef4444',
+  },
+}
+
+function GpsPanel({ gps, onEnable, onDisable, busy, result, errMsg, apiResponse }) {
   const enabled = gps?.enabled
+  const reason  = gps?.reason
+  const reasonInfo = reason ? REASON_MSG[reason] : null
+
+  // Hardware status row — shown in both states
+  const HwStatus = () => (
+    <div
+      className="rounded-lg p-3 flex items-center justify-between"
+      style={{ background: '#0a0c10', border: '1px solid #1e2330' }}
+    >
+      <div>
+        <p style={{ fontSize: 10, color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>
+          GPS hardware
+        </p>
+        <p style={{ fontSize: 12, color: gps?.gps_valid ? '#22c55e' : '#4a5568' }}>
+          {gps?.gps_valid ? 'Fix acquired' : (gps?.gps_valid === false ? 'No fix' : '—')}
+        </p>
+      </div>
+      <div className="text-right">
+        <p style={{ fontSize: 10, color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>
+          Satellites
+        </p>
+        <p className="mono" style={{ fontSize: 12, color: '#94a3b8' }}>
+          {gps?.gps_sats ?? '—'}
+        </p>
+      </div>
+      <div className="text-right">
+        <p style={{ fontSize: 10, color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>
+          Dish inhibit
+        </p>
+        <p style={{ fontSize: 12, color: gps?.gps_enabled === true ? '#22c55e' : gps?.gps_enabled === false ? '#ef4444' : '#4a5568' }}>
+          {gps?.gps_enabled === true ? 'Off (enabled)' : gps?.gps_enabled === false ? 'On (blocked)' : '—'}
+        </p>
+      </div>
+    </div>
+  )
 
   if (!enabled) {
     return (
       <div className="space-y-3">
-        <p style={{ fontSize: 12, color: '#4a5568', lineHeight: 1.6 }}>
-          GPS location reporting is not authorised on this dish. Enable it to see
-          coordinates here and to power future satellite-identification features.
-        </p>
+        <HwStatus />
 
-        {/* Step-by-step instructions */}
+        {/* Reason banner */}
+        {reasonInfo && (
+          <div
+            className="rounded-lg p-3 space-y-1"
+            style={{ background: '#0a0c10', border: `1px solid ${reasonInfo.color}33` }}
+          >
+            <p style={{ fontSize: 11, color: reasonInfo.color, fontWeight: 500 }}>{reason?.replace(/_/g, ' ')}</p>
+            <p style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.5 }}>{reasonInfo.text}</p>
+            <p style={{ fontSize: 10, color: '#4a5568', lineHeight: 1.5 }}>{reasonInfo.hint}</p>
+          </div>
+        )}
+
+        {/* Enable button + feedback */}
         <div
           className="rounded-lg p-3 space-y-2"
           style={{ background: '#0a0c10', border: '1px solid #1e2330' }}
         >
           <p style={{ fontSize: 10, color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-            How to enable — Starlink app
-          </p>
-          {[
-            'Open the Starlink app on your phone',
-            'Tap the menu icon (≡) → Settings',
-            'Scroll to find "GPS" or "Share location data"',
-            'Toggle it on — takes effect immediately',
-          ].map((s, i) => (
-            <div key={i} className="flex gap-2">
-              <span
-                className="shrink-0 rounded-full flex items-center justify-center font-medium"
-                style={{ width: 18, height: 18, fontSize: 10, background: '#1e2330', color: '#4a5568' }}
-              >
-                {i + 1}
-              </span>
-              <span style={{ fontSize: 11, color: '#94a3b8' }}>{s}</span>
-            </div>
-          ))}
-        </div>
-
-        <div
-          className="rounded-lg p-3 space-y-2"
-          style={{ background: '#0a0c10', border: '1px solid #1e2330' }}
-        >
-          <p style={{ fontSize: 10, color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-            Or enable directly from the dashboard
+            Enable via dashboard API
           </p>
           <button
             onClick={onEnable}
@@ -57,11 +99,45 @@ function GpsPanel({ gps, onEnable, onDisable, busy, result, errMsg }) {
             className="flex items-center gap-2 rounded px-3 py-1.5 font-medium transition-opacity disabled:opacity-50"
             style={{ fontSize: 12, background: '#0a2d6e', color: '#4d9fff', border: '1px solid #1a4a9e' }}
           >
-            {busy ? '…' : 'Enable GPS'}
+            {busy ? 'Sending…' : 'Enable GPS'}
           </button>
-          {result === 'err' && (
-            <p style={{ fontSize: 10, color: '#ef4444' }}>{errMsg}</p>
+
+          {result === 'ok' && (
+            <div className="space-y-1">
+              <p style={{ fontSize: 11, color: '#22c55e' }}>
+                ✓ API call succeeded
+                {apiResponse?.gps_enabled != null && ` — dish inhibit now ${apiResponse.gps_enabled ? 'off' : 'on'}`}
+              </p>
+              <p style={{ fontSize: 10, color: '#4a5568' }}>
+                If coordinates still don't appear, confirm location sharing in the Starlink app too.
+              </p>
+            </div>
           )}
+          {result === 'err' && (
+            <p style={{ fontSize: 11, color: '#ef4444' }}>✗ {errMsg}</p>
+          )}
+
+          {/* App instructions */}
+          <div className="pt-1" style={{ borderTop: '1px solid #1e2330' }}>
+            <p style={{ fontSize: 10, color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>
+              Or via Starlink app
+            </p>
+            {[
+              'Open the Starlink app on your phone',
+              'Tap the menu (≡) → Settings',
+              'Find "GPS" or "Share location data" and toggle on',
+            ].map((s, i) => (
+              <div key={i} className="flex gap-2 mb-1.5">
+                <span
+                  className="shrink-0 rounded-full flex items-center justify-center font-medium"
+                  style={{ width: 16, height: 16, fontSize: 9, background: '#1e2330', color: '#4a5568' }}
+                >
+                  {i + 1}
+                </span>
+                <span style={{ fontSize: 11, color: '#4a5568' }}>{s}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     )
@@ -72,17 +148,14 @@ function GpsPanel({ gps, onEnable, onDisable, busy, result, errMsg }) {
 
   return (
     <div className="space-y-2">
+      <HwStatus />
       <div className="grid grid-cols-2 gap-2">
         {[
-          ['Latitude',  lat  != null ? `${lat.toFixed(6)}°`  : '—'],
-          ['Longitude', lon  != null ? `${lon.toFixed(6)}°`  : '—'],
-          ['Altitude',  alt  != null ? `${alt.toFixed(1)} m` : '—'],
+          ['Latitude',  lat != null ? `${lat.toFixed(6)}°`  : '—'],
+          ['Longitude', lon != null ? `${lon.toFixed(6)}°`  : '—'],
+          ['Altitude',  alt != null ? `${alt.toFixed(1)} m` : '—'],
         ].map(([label, val]) => (
-          <div
-            key={label}
-            className="rounded-lg p-2.5"
-            style={{ background: '#0a0c10', border: '1px solid #1e2330' }}
-          >
+          <div key={label} className="rounded-lg p-2.5" style={{ background: '#0a0c10', border: '1px solid #1e2330' }}>
             <p style={{ fontSize: 9, color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
               {label}
             </p>
@@ -101,17 +174,18 @@ function GpsPanel({ gps, onEnable, onDisable, busy, result, errMsg }) {
           </a>
         )}
       </div>
-      <button
-        onClick={onDisable}
-        disabled={busy}
-        className="text-left transition-opacity hover:opacity-70 disabled:opacity-40"
-        style={{ fontSize: 10, color: '#4a5568' }}
-      >
-        Disable GPS reporting
-      </button>
-      {result === 'err' && (
-        <p style={{ fontSize: 10, color: '#ef4444' }}>{errMsg}</p>
-      )}
+      <div className="flex items-center justify-between">
+        <button
+          onClick={onDisable}
+          disabled={busy}
+          className="transition-opacity hover:opacity-70 disabled:opacity-40"
+          style={{ fontSize: 10, color: '#4a5568' }}
+        >
+          Disable GPS reporting
+        </button>
+        {result === 'err' && <p style={{ fontSize: 10, color: '#ef4444' }}>{errMsg}</p>}
+        {result === 'ok'  && <p style={{ fontSize: 10, color: '#22c55e' }}>Done</p>}
+      </div>
     </div>
   )
 }
@@ -160,28 +234,29 @@ export default function Diagnostics() {
 
   // GPS — poll every 15 s; re-fetch on enable/disable
   const [gpsTick,  setGpsTick]  = useState(0)
-  const [gpsBusy,  setGpsBusy]  = useState(false)
-  const [gpsResult, setGpsRes]  = useState(null)   // null | 'ok' | 'err'
-  const [gpsErr,   setGpsErr]   = useState('')
+  const [gpsBusy,    setGpsBusy]    = useState(false)
+  const [gpsResult,  setGpsRes]     = useState(null)   // null | 'ok' | 'err'
+  const [gpsErr,     setGpsErr]     = useState('')
+  const [gpsApiResp, setGpsApiResp] = useState(null)
   const { data: gpsData } = useApi(`/api/location?_t=${gpsTick}`, 15_000)
 
   const setGps = useCallback(async (enable) => {
     setGpsBusy(true)
     setGpsRes(null)
+    setGpsApiResp(null)
     try {
       const r = await fetch(`/api/control/gps/${enable ? 'enable' : 'disable'}`, { method: 'POST' })
-      if (!r.ok) {
-        const body = await r.json().catch(() => ({}))
-        throw new Error(body.detail ?? `HTTP ${r.status}`)
-      }
+      const body = await r.json().catch(() => ({}))
+      if (!r.ok) throw new Error(body.detail ?? `HTTP ${r.status}`)
       setGpsRes('ok')
+      setGpsApiResp(body)
       setGpsTick(t => t + 1)   // force re-fetch of location
     } catch (e) {
       setGpsRes('err')
       setGpsErr(e.message)
     } finally {
       setGpsBusy(false)
-      setTimeout(() => setGpsRes(null), 5000)
+      setTimeout(() => { setGpsRes(null); setGpsApiResp(null) }, 8000)
     }
   }, [])
 
@@ -374,6 +449,7 @@ export default function Diagnostics() {
             busy={gpsBusy}
             result={gpsResult}
             errMsg={gpsErr}
+            apiResponse={gpsApiResp}
           />
         </div>
 

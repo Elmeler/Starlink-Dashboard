@@ -50,6 +50,19 @@ def _walk(msg, depth=0) -> dict:
     return out
 
 
+@router.get("/debug/location")
+async def debug_location():
+    """Raw get_location response — shows exactly what the dish returns."""
+    try:
+        raw = await asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: starlink_grpc.get_location(context=telemetry.get_context()),
+        )
+        return _walk(raw)
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+
+
 @router.get("/debug/wan")
 async def debug_wan(router_address: str = "192.168.1.1:9000"):
     """
