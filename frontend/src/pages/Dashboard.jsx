@@ -143,12 +143,12 @@ export default function Dashboard() {
         />
         <StatCard
           label="Dish temp"
-          value={tempUnit === 'F' ? cToF(d.dish_temp_c) : (d.dish_temp_c != null ? Math.round(d.dish_temp_c) : null)}
-          unit={`°${tempUnit}`}
+          value={d.dish_temp_c != null ? (tempUnit === 'F' ? cToF(d.dish_temp_c) : Math.round(d.dish_temp_c)) : 'N/A'}
+          unit={d.dish_temp_c != null ? `°${tempUnit}` : ''}
           sublabel={
-            d.dish_temp_c == null ? 'no data' :
-            d.dish_temp_c < 60   ? 'normal'  :
-            d.dish_temp_c < 80   ? 'warm'    : 'hot'
+            d.dish_temp_c == null ? 'not reported by hardware' :
+            d.dish_temp_c < 60   ? 'normal' :
+            d.dish_temp_c < 80   ? 'warm'   : 'hot'
           }
           color={tempColor(d.dish_temp_c)}
         />

@@ -45,11 +45,45 @@ export default function TempGauge({
   value    = null,     // always °C from backend
   maxTemp  = 100,
   size     = 130,
+  unavailable = false, // set true when hardware doesn't report this sensor
 }) {
   const ctx      = useContext(LiveContext)
   const tempUnit = ctx?.settings?.tempUnit ?? 'C'
   const display  = tempUnit === 'F' ? cToF(value) : (value != null ? Math.round(value) : null)
   const unit     = `°${tempUnit}`
+
+  // Short-circuit: render a greyed-out placeholder when hardware doesn't report
+  if (unavailable) {
+    return (
+      <div className="flex flex-col items-center gap-1">
+        <svg viewBox={`0 0 120 76`} width={size} style={{ display: 'block', overflow: 'visible' }}>
+          {[
+            { from: 0, to: 0.60 },
+            { from: 0.60, to: 0.80 },
+            { from: 0.80, to: 1.00 },
+          ].map(z => (
+            <path
+              key={z.from}
+              d={arcPath(60, 68, 52, z.from, z.to)}
+              fill="none" stroke="#1a2030" strokeWidth={9} strokeLinecap="round"
+            />
+          ))}
+          <text x={60} y={54} textAnchor="middle" dominantBaseline="middle"
+            fontSize={10} fill="#2a3344" fontFamily="Space Grotesk, sans-serif">
+            N/A
+          </text>
+          <text x={60} y={67} textAnchor="middle" dominantBaseline="middle"
+            fontSize={8} fill="#1e2a3a" fontFamily="Space Grotesk, sans-serif">
+            not reported
+          </text>
+        </svg>
+        <span style={{ fontSize: 10, color: '#2a3344', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+          {label}
+        </span>
+      </div>
+    )
+  }
+
   // Keep colour zones always in °C scale regardless of display unit
 
   // SVG viewport: 0 0 120 76
