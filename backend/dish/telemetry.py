@@ -188,24 +188,52 @@ def _fetch_status() -> dict:
 def _read_temps(raw) -> tuple[Optional[float], Optional[float]]:
     """
     Read dish and board temperatures from the raw protobuf response.
-    Field paths vary by firmware generation; try all known names.
-    Returns (dish_temp_c, board_temp_c) — either may be None.
+
+    Strategy:
+      1. Use the protobuf DESCRIPTOR to enumerate every field in
+         dish_thermal_control and collect all valid temperature values.
+      2. Match against known field-name lists (preferred order).
+      3. If nothing matched, fall back to the two largest valid values
+         (dish typically runs hotter than board).
+      4. Check device_state for very old firmware as a last resort.
     """
     dish_temp  = None
     board_temp = None
     try:
-        # Gen3+: dish_thermal_control sub-message
         thermal = getattr(raw, "dish_thermal_control", None)
         if thermal is not None:
-            dish_temp  = _safe_temp(getattr(thermal, "inlet_temp_celsius",   None))
-            board_temp = _safe_temp(getattr(thermal, "outlet_temp_celsius",  None))
-            # Older Gen3 / Gen2 field name variants
-            if dish_temp is None:
-                dish_temp  = _safe_temp(getattr(thermal, "rack_temp_celsius",   None))
-            if dish_temp is None:
-                dish_temp  = _safe_temp(getattr(thermal, "dish_temp_celsius",   None))
-            if board_temp is None:
-                board_temp = _safe_temp(getattr(thermal, "board_temp_celsius",  None))
+            # Enumerate every field the descriptor exposes
+            temps: dict = {}
+            try:
+                for field in thermal.DESCRIPTOR.fields:
+                    v = _safe_temp(getattr(thermal, field.name, None))
+                    if v is not None:
+                        temps[field.name] = v
+            except AttributeError:
+                pass  # DESCRIPTOR unavailable — fall through to named guesses
+
+            _DISH_NAMES  = ("inlet_temp_celsius", "rack_temp_celsius",
+                            "dish_temp_celsius",  "ota_temp_celsius")
+            _BOARD_NAMES = ("outlet_temp_celsius", "board_temp_celsius",
+                            "pcb_temp_celsius",    "pa_temp_celsius")
+
+            for name in _DISH_NAMES:
+                if name in temps:
+                    dish_temp = temps[name]
+                    break
+
+            for name in _BOARD_NAMES:
+                if name in temps:
+                    board_temp = temps[name]
+                    break
+
+            # If descriptor enumeration found temps but none matched known names,
+            # assign by value magnitude (dish is usually the hotter of the two)
+            if dish_temp is None and board_temp is None and temps:
+                vals = sorted(temps.values(), reverse=True)
+                dish_temp  = vals[0]
+                if len(vals) > 1:
+                    board_temp = vals[1]
 
         # Fallback: top-level device_state (older firmwares)
         if dish_temp is None:
@@ -213,7 +241,7 @@ def _read_temps(raw) -> tuple[Optional[float], Optional[float]]:
             if state is not None:
                 dish_temp = _safe_temp(getattr(state, "rack_temp_celsius", None))
     except Exception:
-        pass
+        logger.debug("_read_temps failed", exc_info=True)
 
     return dish_temp, board_temp
 
