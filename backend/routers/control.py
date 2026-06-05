@@ -57,7 +57,10 @@ async def restart_backend():
 
     async def _restart():
         await asyncio.sleep(0.4)
-        os.execv(sys.executable, [sys.executable] + sys.argv)
+        # Re-run as "python -m uvicorn <args>" so Python doesn't add the
+        # uvicorn package directory to sys.path[0], which would cause
+        # uvicorn/logging.py to shadow stdlib logging (circular import).
+        os.execv(sys.executable, [sys.executable, '-m', 'uvicorn'] + sys.argv[1:])
 
     asyncio.create_task(_restart())
     return {"ok": True}
