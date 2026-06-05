@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import { IconPlugConnected, IconPlugConnectedX, IconRefresh, IconRadar, IconPower, IconAnchor, IconServer } from '@tabler/icons-react'
 import { useLive } from '../App'
+import { useApi }  from '../hooks/useApi'
 
 // ── sub-components ────────────────────────────────────────────────────────────
 
@@ -107,8 +108,46 @@ function fmtUptime(s) {
   return `${m}m`
 }
 
+// ── service enum → friendly label ─────────────────────────────────────────────
+
+const SERVICE_CLASS = {
+  UNKNOWN:     'Unknown',
+  BEST_EFFORT: 'Best Effort',
+  BULK:        'Standard (Residential)',
+  PRIORITY:    'Priority (Business/RV)',
+}
+
+const MOBILITY = {
+  STATIONARY: 'Stationary (Fixed home)',
+  NOMADIC:    'Nomadic (Roam)',
+  MOBILE:     'Mobile (In-motion)',
+  AVIATION:   'Aviation',
+}
+
+const SW_STATE = {
+  IDLE:                 'Up to date',
+  FETCHING:             'Downloading update…',
+  PRE_REBOOT_CLEANUP:   'Preparing to install…',
+  REBOOT_REQUIRED:      'Reboot required to install',
+  UP_TO_DATE:           'Up to date',
+  ERROR:                'Update error',
+}
+
+function friendly(map, key) {
+  if (!key) return '—'
+  // Strip common proto prefixes (e.g. "CLASS_OF_SERVICE_BULK" → look up "BULK")
+  const short = key.replace(/^(CLASS_OF_SERVICE_|MOBILITY_CLASS_|SOFTWARE_UPDATE_STATE_)/, '')
+  return map[short] ?? map[key] ?? key.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
+}
+
+function fmtTs(ts) {
+  if (!ts) return null
+  return new Date(ts * 1000).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
+}
+
 export default function Settings() {
   const { settings, updateSetting, connected, dishConnected, data } = useLive()
+  const { data: svc } = useApi('/api/service', 60_000)
   const wsUrl = `ws://${window.location.host}/ws/live`
 
   // Local state for the IP field (controlled while editing)
@@ -373,6 +412,55 @@ export default function Settings() {
           accentBg="#0a2d6e" accentColor="#4d9fff" accentBorder="#1a4a9e"
           onConfirm="/api/control/restart-backend"
         />
+      </Card>
+
+      {/* ── Service & Plan ── */}
+      <Card title="Service &amp; Plan">
+        {/* Software update banner */}
+        {svc?.sw_update_reboot_required && (
+          <div
+            className="rounded-lg px-3 py-2 flex items-start gap-2"
+            style={{ background: '#3d2800', border: '1px solid #92400e' }}
+          >
+            <span style={{ fontSize: 10, color: '#fbbf24', marginTop: 1 }}>⚠</span>
+            <div>
+              <p style={{ fontSize: 12, color: '#fde68a', fontWeight: 500 }}>Software update pending — reboot required</p>
+              {svc.sw_update_reboot_ts && (
+                <p style={{ fontSize: 10, color: '#d97706', marginTop: 2 }}>
+                  Scheduled: {fmtTs(svc.sw_update_reboot_ts)}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-1.5">
+          {[
+            ['Service class',  friendly(SERVICE_CLASS, svc?.class_of_service)],
+            ['Mobility',       friendly(MOBILITY,       svc?.mobility_class)],
+            ['Country',        svc?.country_code ?? '—'],
+            ['Software',       svc?.sw_update_state
+              ? (SW_STATE[svc.sw_update_state] ?? svc.sw_update_state)
+              : '—'],
+            ['Hardware',       svc?.hardware_version ?? '—'],
+            ['Firmware',       svc?.software_version ?? '—'],
+          ].map(([label, value]) => (
+            <div key={label} className="flex justify-between items-baseline gap-4">
+              <span style={{ fontSize: 10, color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>
+                {label}
+              </span>
+              <span className="mono" style={{ fontSize: 11, color: '#94a3b8', textAlign: 'right' }}>
+                {value}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {svc && (
+          <p style={{ fontSize: 9, color: '#1e2a3a', marginTop: 4 }}>
+            Polled from dish gRPC every 60 s · account shard {svc.account_shard}
+          </p>
+        )}
       </Card>
 
       {/* ── About ── */}
