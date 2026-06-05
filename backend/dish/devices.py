@@ -52,7 +52,8 @@ def _parse_client(client) -> dict:
 
     signal    = getattr(client, "signal_strength", None)
     iface_name = _str(getattr(client, "iface_name", None))
-    band      = _map_band(iface_name)
+    iface_enum = getattr(client, "iface", None)
+    band       = _map_band(iface_name, iface_enum)
 
     secs_left = getattr(client, "seconds_until_dhcp_lease_expires", None)
     lease     = (int(time.time() + float(secs_left))
@@ -85,18 +86,38 @@ def _safe_float(value) -> float | None:
         return None
 
 
-def _map_band(iface_name: str) -> str:
-    n = iface_name.lower()
-    if not n:
-        return "unknown"
-    if "eth" in n or "wired" in n or "lan" in n:
-        return "wired"
-    if "5g" in n or "5ghz" in n or n.endswith("1"):
-        return "5GHz"
-    if "2g" in n or "2.4" in n or n.endswith("0"):
-        return "2.4GHz"
-    if "wlan" in n or "wifi" in n or "wireless" in n:
-        return "2.4GHz"
+def _map_band(iface_name: str, iface_enum=None) -> str:
+    # iface_name (e.g. "ra0", "rax0") is most reliable when present
+    n = (iface_name or "").lower()
+    if n:
+        if "eth" in n or "lan" in n:
+            return "wired"
+        if "rax" in n or "5g" in n:   # rax0 = 5 GHz
+            return "5GHz"
+        if "ra" in n:                  # ra0, ra1, ra2 = 2.4 GHz
+            return "2.4GHz"
+
+    # Fall back to the iface enum value (yagrc returns it as an int;
+    # str() on a proto enum gives its integer value, not its name, so
+    # we look it up via the DESCRIPTOR if available)
+    if iface_enum is not None:
+        try:
+            enum_name = iface_enum.DESCRIPTOR.name  # e.g. "ETH", "RF_2GHZ"
+        except AttributeError:
+            try:
+                # EnumValueDescriptor path used by some yagrc versions
+                desc = type(iface_enum).DESCRIPTOR
+                enum_name = desc.values_by_number[int(iface_enum)].name
+            except Exception:
+                enum_name = str(iface_enum)
+        s = enum_name.upper()
+        if "ETH" in s:
+            return "wired"
+        if "5GHZ" in s or "5G" in s:
+            return "5GHz"
+        if "2GHZ" in s or "2G" in s or "RF" in s:
+            return "2.4GHz"
+
     return "unknown"
 
 
