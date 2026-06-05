@@ -9,7 +9,7 @@ import TempGauge         from '../components/TempGauge'
 
 const REASON_MSG = {
   PERMISSION_DENIED: {
-    text: 'The dish requires authorisation from the Starlink app before it will share location data. The API toggle above may not be sufficient on its own.',
+    text: 'The dish requires authorisation from the Starlink app before it will share location data. The API toggle below may not be sufficient on its own.',
     hint: 'After clicking Enable GPS, also open the Starlink app → Settings and confirm GPS / location sharing is on there.',
     color: '#f59e0b',
   },
