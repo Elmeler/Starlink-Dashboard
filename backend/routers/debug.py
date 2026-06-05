@@ -50,6 +50,37 @@ def _walk(msg, depth=0) -> dict:
     return out
 
 
+@router.get("/debug/wan")
+async def debug_wan(router_address: str = "192.168.1.1:9000"):
+    """Dump the raw WAN/network info response from the Starlink router."""
+    import grpc
+    import yagrc.reflector as reflector
+
+    try:
+        with grpc.insecure_channel(router_address) as channel:
+            future = grpc.channel_ready_future(channel)
+            future.result(timeout=2)
+
+            grclient = reflector.GrpcReflectionClient()
+            grclient.load_protocols(channel, symbols=["SpaceX.API.Device.Device"])
+            DeviceStub = grclient.service_stub_class("SpaceX.API.Device.Device")
+            Request    = grclient.message_class("SpaceX.API.Device.Request")
+            stub       = DeviceStub(channel)
+
+            results = {}
+            for req_name in ("get_network_info", "wifi_get_status", "wifi_get_diagnostics"):
+                try:
+                    resp = stub.Handle(Request(**{req_name: {}}), timeout=5)
+                    inner = getattr(resp, req_name, None)
+                    results[req_name] = _walk(inner) if inner is not None else None
+                except Exception as exc:
+                    results[req_name] = f"<error: {exc}>"
+
+        return results
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+
+
 @router.get("/debug/devices")
 async def debug_devices(router_address: str = "192.168.1.1:9000"):
     """
