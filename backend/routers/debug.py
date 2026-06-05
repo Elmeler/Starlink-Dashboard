@@ -50,6 +50,41 @@ def _walk(msg, depth=0) -> dict:
     return out
 
 
+@router.get("/debug/devices")
+async def debug_devices(router_address: str = "192.168.1.1:9000"):
+    """
+    Dump every field on the first wifi client returned by the router so
+    we can see which field name actually holds the IP address.
+    """
+    import grpc
+    import yagrc.reflector as reflector
+
+    try:
+        with grpc.insecure_channel(router_address) as channel:
+            future = grpc.channel_ready_future(channel)
+            future.result(timeout=2)
+
+            grclient = reflector.GrpcReflectionClient()
+            grclient.load_protocols(channel, symbols=["SpaceX.API.Device.Device"])
+            DeviceStub = grclient.service_stub_class("SpaceX.API.Device.Device")
+            Request    = grclient.message_class("SpaceX.API.Device.Request")
+
+            stub = DeviceStub(channel)
+            response = stub.Handle(Request(wifi_get_clients={}), timeout=5)
+            clients_resp = getattr(response, "wifi_get_clients", None)
+            clients = list(getattr(clients_resp, "clients", []) or [])
+
+        if not clients:
+            return {"clients_found": 0}
+
+        return {
+            "clients_found": len(clients),
+            "first_client_fields": _walk(clients[0]),
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+
+
 @router.get("/debug/temps")
 async def debug_temps():
     """
