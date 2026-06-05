@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { createContext, useContext } from 'react'
 import { useLiveData }   from './hooks/useLiveData'
 import { useAlertLog }   from './hooks/useAlertLog'
+import { useOutageLog }  from './hooks/useOutageLog'
 import { useSettings }   from './hooks/useSettings'
 import Sidebar    from './components/Layout/Sidebar'
 import Header     from './components/Layout/Header'
@@ -43,11 +44,12 @@ function MainContent() {
 }
 
 function Shell() {
-  const live                    = useLiveData()
-  const { log: alertLog, clearLog } = useAlertLog(live.data?.alerts ?? [])
-  const { settings, update: updateSetting } = useSettings()
+  const live                                  = useLiveData()
+  const { log: alertLog,  clearLog }          = useAlertLog(live.data?.alerts ?? [])
+  const { log: outageLog, clearLog: clearOutageLog } = useOutageLog(live.dishConnected, live.data?.state)
+  const { settings, update: updateSetting }   = useSettings()
 
-  const ctx = { ...live, alertLog, clearLog, settings, updateSetting }
+  const ctx = { ...live, alertLog, clearLog, outageLog, clearOutageLog, settings, updateSetting }
 
   return (
     <LiveContext.Provider value={ctx}>

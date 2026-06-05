@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { IconPlugConnected, IconPlugConnectedX, IconRefresh, IconRadar } from '@tabler/icons-react'
+import { useState, useCallback } from 'react'
+import { IconPlugConnected, IconPlugConnectedX, IconRefresh, IconRadar, IconPower, IconAnchor } from '@tabler/icons-react'
 import { useLive } from '../App'
 
 // ── sub-components ────────────────────────────────────────────────────────────
@@ -31,6 +31,71 @@ function FieldRow({ label, hint, children }) {
 // ── component ─────────────────────────────────────────────────────────────────
 
 const POLL_OPTIONS = [1, 2, 5, 10]
+
+/**
+ * Two-step confirm button. First click → arms (shows warning text).
+ * Second click within 4 s → fires action. Auto-resets if not confirmed.
+ */
+function ConfirmButton({ label, description, icon: Icon, accentBg, accentColor, accentBorder, onConfirm }) {
+  const [armed, setArmed]     = useState(false)
+  const [busy,  setBusy]      = useState(false)
+  const [result, setResult]   = useState(null)   // null | 'ok' | 'err'
+  const [errMsg, setErrMsg]   = useState('')
+
+  const arm = useCallback(() => {
+    setArmed(true)
+    setResult(null)
+    setTimeout(() => setArmed(false), 4000)
+  }, [])
+
+  const fire = useCallback(async () => {
+    setArmed(false)
+    setBusy(true)
+    setResult(null)
+    try {
+      const r = await fetch(onConfirm, { method: 'POST' })
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({}))
+        throw new Error(body.detail ?? `HTTP ${r.status}`)
+      }
+      setResult('ok')
+    } catch (e) {
+      setResult('err')
+      setErrMsg(e.message)
+    } finally {
+      setBusy(false)
+      setTimeout(() => setResult(null), 4000)
+    }
+  }, [onConfirm])
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center gap-2">
+        <button
+          onClick={armed ? fire : arm}
+          disabled={busy}
+          className="flex items-center gap-1.5 rounded px-3 py-1.5 font-medium transition-all disabled:opacity-50"
+          style={{
+            fontSize: 12,
+            background: armed ? accentBg    : '#111520',
+            color:      armed ? accentColor : '#4a5568',
+            border:     `1px solid ${armed ? accentBorder : '#1e2330'}`,
+            whiteSpace: 'nowrap',
+            minWidth: 90,
+          }}
+        >
+          {busy
+            ? <IconRefresh size={13} stroke={2} className="animate-spin" />
+            : <Icon size={13} stroke={2} />}
+          {armed ? 'Confirm?' : label}
+        </button>
+        <span style={{ fontSize: 10, color: '#2a3344' }}>{description}</span>
+      </div>
+      {result === 'ok'  && <p style={{ fontSize: 10, color: '#22c55e' }}>Done</p>}
+      {result === 'err' && <p style={{ fontSize: 10, color: '#ef4444' }}>{errMsg}</p>}
+    </div>
+  )
+}
 
 function fmtUptime(s) {
   if (s == null) return '—'
@@ -266,6 +331,34 @@ export default function Settings() {
             Applies on next page load — currently active: {settings.pollIntervalS}s
           </p>
         </FieldRow>
+      </Card>
+
+      {/* ── Dish Controls ── */}
+      <Card title="Dish Controls">
+        <p style={{ fontSize: 11, color: '#4a5568' }}>
+          Actions take effect immediately. Click once to arm, again to confirm.
+        </p>
+        <ConfirmButton
+          label="Reboot"
+          description="Restart the dish — connection drops for ~60 s"
+          icon={IconPower}
+          accentBg="#3b0c0c" accentColor="#ef4444" accentBorder="#7c2d12"
+          onConfirm="/api/control/reboot"
+        />
+        <ConfirmButton
+          label="Stow"
+          description="Move dish to travel position"
+          icon={IconAnchor}
+          accentBg="#3d2800" accentColor="#f59e0b" accentBorder="#78350f"
+          onConfirm="/api/control/stow"
+        />
+        <ConfirmButton
+          label="Unstow"
+          description="Resume normal operation from stow"
+          icon={IconRadar}
+          accentBg="#0a2d6e" accentColor="#4d9fff" accentBorder="#1a4a9e"
+          onConfirm="/api/control/unstow"
+        />
       </Card>
 
       {/* ── About ── */}

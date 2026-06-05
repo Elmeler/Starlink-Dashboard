@@ -59,6 +59,10 @@ def configure(address: str) -> None:
     _context = starlink_grpc.ChannelContext(target=address)
 
 
+def get_context():
+    return _context
+
+
 def get_current() -> dict:
     return dict(_current)
 

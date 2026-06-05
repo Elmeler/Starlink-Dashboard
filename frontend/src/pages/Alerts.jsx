@@ -59,8 +59,8 @@ function ActiveCard({ alert, onDismiss }) {
 // ── component ─────────────────────────────────────────────────────────────────
 
 export default function Alerts() {
-  const { data, alertLog, clearLog } = useLive()
-  const [dismissed, setDismissed]    = useState(new Set())
+  const { data, alertLog, clearLog, outageLog, clearOutageLog } = useLive()
+  const [dismissed, setDismissed] = useState(new Set())
 
   const activeAlerts  = (data?.alerts ?? []).filter(a => !dismissed.has(a.key))
   const historyAlerts = alertLog  // newest first from useAlertLog
@@ -223,6 +223,109 @@ export default function Alerts() {
           </div>
         )}
       </section>
+
+      {/* ── Outage log ── */}
+      <section>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <p className="label">Outage History</p>
+            {outageLog?.length > 0 && (
+              <span
+                className="rounded-full px-2 py-0.5"
+                style={{ fontSize: 10, background: '#1e2330', color: '#4a5568' }}
+              >
+                {outageLog.length}
+              </span>
+            )}
+          </div>
+          {outageLog?.length > 0 && (
+            <button
+              onClick={clearOutageLog}
+              className="flex items-center gap-1 hover:opacity-70 transition-opacity"
+              style={{ fontSize: 10, color: '#4a5568' }}
+            >
+              <IconTrash size={11} stroke={1.5} />
+              Clear
+            </button>
+          )}
+        </div>
+
+        {!outageLog?.length ? (
+          <div
+            className="rounded-lg px-4 py-5 text-center"
+            style={{ background: '#0d1017', border: '1px solid #1e2330' }}
+          >
+            <p style={{ fontSize: 12, color: '#2a3344' }}>
+              No outages recorded — disconnections will appear here
+            </p>
+          </div>
+        ) : (
+          <div className="rounded-lg overflow-hidden" style={{ border: '1px solid #1e2330' }}>
+            <table className="w-full" style={{ borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ background: '#111520', borderBottom: '1px solid #1e2330' }}>
+                  {['Started', 'Cause', 'Duration', 'Status'].map(h => (
+                    <th
+                      key={h}
+                      className="text-left"
+                      style={{ padding: '7px 12px', fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#4a5568' }}
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {outageLog.map((entry, i) => {
+                  const isActive = entry.endTime == null
+                  return (
+                    <tr key={entry.id} style={{ borderTop: i === 0 ? 'none' : '0.5px solid #1a2030' }}>
+                      <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>
+                        <span className="mono" style={{ fontSize: 11, color: '#4a5568' }}>
+                          {fmtDate(entry.startTime)}
+                        </span>
+                      </td>
+                      <td style={{ padding: '8px 12px' }}>
+                        <span
+                          className="inline-block rounded px-1.5 py-0.5 mono"
+                          style={{ fontSize: 10, background: '#1e2330', color: '#94a3b8' }}
+                        >
+                          {entry.cause}
+                        </span>
+                      </td>
+                      <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>
+                        <span className="mono" style={{ fontSize: 11, color: '#4a5568' }}>
+                          {fmtDuration(entry.startTime, entry.endTime)}
+                        </span>
+                      </td>
+                      <td style={{ padding: '8px 12px' }}>
+                        {isActive ? (
+                          <span
+                            className="inline-flex items-center gap-1 rounded px-1.5 py-0.5"
+                            style={{ fontSize: 10, background: '#3b0c0c', color: '#ef4444' }}
+                          >
+                            <span className="inline-block rounded-full" style={{ width: 5, height: 5, background: '#ef4444' }} />
+                            Offline
+                          </span>
+                        ) : (
+                          <span
+                            className="inline-flex items-center gap-1 rounded px-1.5 py-0.5"
+                            style={{ fontSize: 10, background: '#0a3320', color: '#22c55e' }}
+                          >
+                            <IconCircleCheck size={10} stroke={2} />
+                            Restored
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
     </div>
   )
 }

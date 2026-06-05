@@ -4,6 +4,7 @@ import { useApi }    from '../hooks/useApi'
 
 function cToF(c) { return c != null ? Math.round(c * 9 / 5 + 32) : null }
 import StatCard        from '../components/Cards/StatCard'
+import SparkCard       from '../components/Cards/SparkCard'
 import AlertBanner     from '../components/Cards/AlertBanner'
 import ThroughputChart from '../components/Charts/ThroughputChart'
 import LatencyChart    from '../components/Charts/LatencyChart'
@@ -78,6 +79,12 @@ export default function Dashboard() {
 
   const d = data ?? {}
 
+  // Last 60 latency samples for the sparkline (1 per second from WS history)
+  const latencySpark = useMemo(
+    () => wsHistory.slice(-60).map(p => p.latency_ms ?? null),
+    [wsHistory]
+  )
+
   return (
     <div className="space-y-2 max-w-full">
 
@@ -104,7 +111,7 @@ export default function Dashboard() {
           sublabel={d.upload_mbps != null ? 'normal' : 'no data'}
           color="#22c55e"
         />
-        <StatCard
+        <SparkCard
           label="Latency"
           value={d.latency_ms != null ? Math.round(d.latency_ms) : null}
           unit="ms"
@@ -114,6 +121,7 @@ export default function Dashboard() {
             d.latency_ms < 100  ? 'elevated' : 'high'
           }
           color={latencyColor(d.latency_ms)}
+          sparkData={latencySpark}
         />
         <StatCard
           label="Drop rate"
