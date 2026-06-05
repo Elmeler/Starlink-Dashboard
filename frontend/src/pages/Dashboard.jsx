@@ -7,6 +7,7 @@ import StatCard        from '../components/Cards/StatCard'
 import AlertBanner     from '../components/Cards/AlertBanner'
 import ThroughputChart from '../components/Charts/ThroughputChart'
 import LatencyChart    from '../components/Charts/LatencyChart'
+import PowerChart      from '../components/Charts/PowerChart'
 import ObstructionMap  from '../components/ObstructionMap'
 import WanDetails      from '../components/WanDetails'
 
@@ -53,9 +54,10 @@ export default function Dashboard() {
   const tempUnit = settings?.tempUnit ?? 'C'
 
   // Seed charts with backend history, then append live WS points
-  const { data: seedResp }  = useApi('/api/history',     0)
-  const { data: diagData }  = useApi('/api/diagnostics', 60_000)
-  const { data: wanData }   = useApi('/api/wan',         60_000)
+  const { data: seedResp }  = useApi('/api/history',          0)
+  const { data: powerResp } = useApi('/api/history?hours=24', 60_000)
+  const { data: diagData }  = useApi('/api/diagnostics',      60_000)
+  const { data: wanData }   = useApi('/api/wan',              60_000)
 
   const chartData = useMemo(() => {
     const seed      = seedResp?.data ?? []
@@ -158,6 +160,14 @@ export default function Dashboard() {
         >
           <LatencyChart data={chartData} />
         </div>
+      </div>
+
+      {/* ── Power chart (24 h from persistent DB) ── */}
+      <div
+        className="rounded-lg p-3"
+        style={{ background: '#0d1017', border: '1px solid #1e2330' }}
+      >
+        <PowerChart data={powerResp?.data ?? []} hours={24} />
       </div>
 
       {/* ── Bottom row: obstruction map + WAN details ── */}

@@ -19,6 +19,7 @@ import grpc
 import starlink_grpc
 
 from dish.alerts import parse_alerts
+from dish import store
 
 logger = logging.getLogger(__name__)
 
@@ -130,6 +131,8 @@ async def _poll_history() -> None:
             )
             for pt in points:
                 _history.append(pt)
+            if points:
+                store.write_points(points)
             backoff = 1.0
         except starlink_grpc.GrpcError as exc:
             logger.warning("history poll failed: %s (retry in %.0fs)", exc, backoff)

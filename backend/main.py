@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from dish import telemetry
+from dish import telemetry, store
 from routers.health      import router as health_router
 from routers.status      import router as status_router
 from routers.history     import router as history_router
@@ -30,6 +30,8 @@ SERVE_STATIC = os.getenv("SERVE_STATIC", "0") == "1" and STATIC_DIR.exists()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    store.init()
+    store.prune()
     logger.info("Starting telemetry polling -> %s", DISH_ADDRESS)
     await telemetry.start_polling(DISH_ADDRESS)
     yield
