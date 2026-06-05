@@ -1,6 +1,7 @@
-import { useState } from 'react'
-import { IconAlertTriangle, IconCircleCheck, IconTrash, IconX } from '@tabler/icons-react'
+import { useState, useCallback, useRef } from 'react'
+import { IconAlertTriangle, IconCircleCheck, IconTrash, IconX, IconRefresh, IconChevronRight } from '@tabler/icons-react'
 import { useLive } from '../App'
+import { ALERT_META } from '../utils/alertMeta'
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -30,27 +31,82 @@ function fmtDuration(startMs, endMs) {
 // ── active alert card ─────────────────────────────────────────────────────────
 
 function ActiveCard({ alert, onDismiss }) {
+  const meta            = ALERT_META[alert.key]
+  const [busy, setBusy] = useState(false)
+  const [res,  setRes]  = useState(null)
+
+  const reboot = useCallback(async () => {
+    setBusy(true); setRes(null)
+    try {
+      const r = await fetch('/api/control/reboot', { method: 'POST' })
+      if (!r.ok) throw new Error()
+      setRes('ok')
+    } catch {
+      setRes('err')
+      setTimeout(() => setRes(null), 4000)
+    } finally { setBusy(false) }
+  }, [])
+
   return (
     <div
-      className="flex items-start gap-3 rounded-lg px-4 py-3"
+      className="rounded-lg px-4 py-3 space-y-2.5"
       style={{ background: '#7c2d12', border: '1px solid #c2410c' }}
     >
-      <IconAlertTriangle size={16} stroke={2} style={{ color: '#fb923c', flexShrink: 0, marginTop: 1 }} />
-      <div className="flex-1 min-w-0">
-        <p className="font-medium" style={{ fontSize: 13, color: '#fed7aa' }}>{alert.label}</p>
-        <p style={{ fontSize: 10, color: '#c2410c', marginTop: 2 }}>
-          Active since {fmtTime(alert.startTime)}
-        </p>
+      {/* Header row */}
+      <div className="flex items-start gap-3">
+        <IconAlertTriangle size={16} stroke={2} style={{ color: '#fb923c', flexShrink: 0, marginTop: 1 }} />
+        <div className="flex-1 min-w-0">
+          <p className="font-medium" style={{ fontSize: 13, color: '#fed7aa' }}>{alert.label}</p>
+          <p style={{ fontSize: 10, color: '#c2410c', marginTop: 2 }}>
+            Active since {fmtTime(alert.startTime)}
+          </p>
+        </div>
+        {onDismiss && (
+          <button
+            onClick={() => onDismiss(alert.key)}
+            className="hover:opacity-70 transition-opacity"
+            style={{ color: '#fb923c', lineHeight: 0, flexShrink: 0 }}
+            aria-label="Dismiss"
+          >
+            <IconX size={14} stroke={2} />
+          </button>
+        )}
       </div>
-      {onDismiss && (
-        <button
-          onClick={() => onDismiss(alert.key)}
-          className="hover:opacity-70 transition-opacity"
-          style={{ color: '#fb923c', lineHeight: 0, flexShrink: 0 }}
-          aria-label="Dismiss"
-        >
-          <IconX size={14} stroke={2} />
-        </button>
+
+      {/* Description */}
+      {meta?.description && (
+        <p style={{ fontSize: 12, color: '#fcd9aa', lineHeight: 1.55, paddingLeft: 27 }}>
+          {meta.description}
+        </p>
+      )}
+
+      {/* Actions */}
+      {meta?.actions?.length > 0 && (
+        <ul className="space-y-1.5" style={{ paddingLeft: 27 }}>
+          {meta.actions.map((action, i) => (
+            <li key={i} className="flex gap-2">
+              <IconChevronRight size={11} stroke={2} style={{ color: '#c2410c', flexShrink: 0, marginTop: 1 }} />
+              <span style={{ fontSize: 12, color: '#fed7aa', lineHeight: 1.45 }}>{action}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* Reboot button */}
+      {meta?.canReboot && (
+        <div style={{ paddingLeft: 27 }}>
+          <button
+            onClick={reboot}
+            disabled={busy}
+            className="flex items-center gap-1.5 rounded px-2.5 py-1 font-medium transition-opacity disabled:opacity-50"
+            style={{ fontSize: 11, background: '#3b0c0c', color: '#fb923c', border: '1px solid #7c2d12' }}
+          >
+            {busy
+              ? <IconRefresh size={11} stroke={2} className="animate-spin" />
+              : <IconRefresh size={11} stroke={2} />}
+            {res === 'ok' ? 'Rebooting…' : res === 'err' ? 'Reboot failed' : 'Reboot dish'}
+          </button>
+        </div>
       )}
     </div>
   )
