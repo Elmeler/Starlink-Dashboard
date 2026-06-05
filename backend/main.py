@@ -13,6 +13,7 @@ from routers.history     import router as history_router
 from routers.devices     import router as devices_router
 from routers.diagnostics import router as diagnostics_router
 from routers.control     import router as control_router
+from routers.location    import router as location_router
 from routers.ws          import router as ws_router
 
 logging.basicConfig(
@@ -63,6 +64,7 @@ app.include_router(history_router,     prefix="/api", tags=["history"])
 app.include_router(devices_router,     prefix="/api", tags=["devices"])
 app.include_router(diagnostics_router, prefix="/api", tags=["diagnostics"])
 app.include_router(control_router,     prefix="/api", tags=["control"])
+app.include_router(location_router,    prefix="/api", tags=["location"])
 app.include_router(ws_router,          tags=["websocket"])
 
 # Production static-file mount — must come LAST

@@ -1,9 +1,120 @@
-import { useMemo } from 'react'
+import { useMemo, useState, useCallback } from 'react'
 import { useLive }       from '../App'
 import { useApi }        from '../hooks/useApi'
 import ObstructionMap    from '../components/ObstructionMap'
 import SatelliteTracker  from '../components/SatelliteTracker'
 import TempGauge         from '../components/TempGauge'
+
+// ── GPS panel ─────────────────────────────────────────────────────────────────
+
+function GpsPanel({ gps, onEnable, onDisable, busy, result, errMsg }) {
+  const enabled = gps?.enabled
+
+  if (!enabled) {
+    return (
+      <div className="space-y-3">
+        <p style={{ fontSize: 12, color: '#4a5568', lineHeight: 1.6 }}>
+          GPS location reporting is not authorised on this dish. Enable it to see
+          coordinates here and to power future satellite-identification features.
+        </p>
+
+        {/* Step-by-step instructions */}
+        <div
+          className="rounded-lg p-3 space-y-2"
+          style={{ background: '#0a0c10', border: '1px solid #1e2330' }}
+        >
+          <p style={{ fontSize: 10, color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+            How to enable — Starlink app
+          </p>
+          {[
+            'Open the Starlink app on your phone',
+            'Tap the menu icon (≡) → Settings',
+            'Scroll to find "GPS" or "Share location data"',
+            'Toggle it on — takes effect immediately',
+          ].map((s, i) => (
+            <div key={i} className="flex gap-2">
+              <span
+                className="shrink-0 rounded-full flex items-center justify-center font-medium"
+                style={{ width: 18, height: 18, fontSize: 10, background: '#1e2330', color: '#4a5568' }}
+              >
+                {i + 1}
+              </span>
+              <span style={{ fontSize: 11, color: '#94a3b8' }}>{s}</span>
+            </div>
+          ))}
+        </div>
+
+        <div
+          className="rounded-lg p-3 space-y-2"
+          style={{ background: '#0a0c10', border: '1px solid #1e2330' }}
+        >
+          <p style={{ fontSize: 10, color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+            Or enable directly from the dashboard
+          </p>
+          <button
+            onClick={onEnable}
+            disabled={busy}
+            className="flex items-center gap-2 rounded px-3 py-1.5 font-medium transition-opacity disabled:opacity-50"
+            style={{ fontSize: 12, background: '#0a2d6e', color: '#4d9fff', border: '1px solid #1a4a9e' }}
+          >
+            {busy ? '…' : 'Enable GPS'}
+          </button>
+          {result === 'err' && (
+            <p style={{ fontSize: 10, color: '#ef4444' }}>{errMsg}</p>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  const { latitude: lat, longitude: lon, altitude: alt } = gps
+  const mapsUrl = `https://www.google.com/maps?q=${lat},${lon}`
+
+  return (
+    <div className="space-y-2">
+      <div className="grid grid-cols-2 gap-2">
+        {[
+          ['Latitude',  lat  != null ? `${lat.toFixed(6)}°`  : '—'],
+          ['Longitude', lon  != null ? `${lon.toFixed(6)}°`  : '—'],
+          ['Altitude',  alt  != null ? `${alt.toFixed(1)} m` : '—'],
+        ].map(([label, val]) => (
+          <div
+            key={label}
+            className="rounded-lg p-2.5"
+            style={{ background: '#0a0c10', border: '1px solid #1e2330' }}
+          >
+            <p style={{ fontSize: 9, color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
+              {label}
+            </p>
+            <p className="mono" style={{ fontSize: 13, color: '#e2e8f0' }}>{val}</p>
+          </div>
+        ))}
+        {lat != null && lon != null && (
+          <a
+            href={mapsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-lg p-2.5 flex items-center justify-center transition-opacity hover:opacity-70"
+            style={{ background: '#0a2d6e', border: '1px solid #1a4a9e', color: '#4d9fff', fontSize: 11 }}
+          >
+            Open in Maps ↗
+          </a>
+        )}
+      </div>
+      <button
+        onClick={onDisable}
+        disabled={busy}
+        className="text-left transition-opacity hover:opacity-70 disabled:opacity-40"
+        style={{ fontSize: 10, color: '#4a5568' }}
+      >
+        Disable GPS reporting
+      </button>
+      {result === 'err' && (
+        <p style={{ fontSize: 10, color: '#ef4444' }}>{errMsg}</p>
+      )}
+    </div>
+  )
+}
 
 // ── small helpers ─────────────────────────────────────────────────────────────
 
@@ -46,6 +157,33 @@ function StateBadge({ state }) {
 export default function Diagnostics() {
   const { data, history } = useLive()
   const { data: diag }    = useApi('/api/diagnostics', 60_000)
+
+  // GPS — poll every 15 s; re-fetch on enable/disable
+  const [gpsTick,  setGpsTick]  = useState(0)
+  const [gpsBusy,  setGpsBusy]  = useState(false)
+  const [gpsResult, setGpsRes]  = useState(null)   // null | 'ok' | 'err'
+  const [gpsErr,   setGpsErr]   = useState('')
+  const { data: gpsData } = useApi(`/api/location?_t=${gpsTick}`, 15_000)
+
+  const setGps = useCallback(async (enable) => {
+    setGpsBusy(true)
+    setGpsRes(null)
+    try {
+      const r = await fetch(`/api/control/gps/${enable ? 'enable' : 'disable'}`, { method: 'POST' })
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({}))
+        throw new Error(body.detail ?? `HTTP ${r.status}`)
+      }
+      setGpsRes('ok')
+      setGpsTick(t => t + 1)   // force re-fetch of location
+    } catch (e) {
+      setGpsRes('err')
+      setGpsErr(e.message)
+    } finally {
+      setGpsBusy(false)
+      setTimeout(() => setGpsRes(null), 5000)
+    }
+  }, [])
 
   // Build pointing history from live WS snapshots (last 90 readings = 90 s)
   const pointingHistory = useMemo(() =>
@@ -208,6 +346,22 @@ export default function Diagnostics() {
             </StatRow>
           </div>
         </div>
+        {/* Row 3: GPS location */}
+        <div
+          className="rounded-lg p-4"
+          style={{ background: '#0d1017', border: '1px solid #1e2330' }}
+        >
+          <p className="label mb-3">GPS Location</p>
+          <GpsPanel
+            gps={gpsData}
+            onEnable={() => setGps(true)}
+            onDisable={() => setGps(false)}
+            busy={gpsBusy}
+            result={gpsResult}
+            errMsg={gpsErr}
+          />
+        </div>
+
       </div>
     </div>
   )
