@@ -12,21 +12,37 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-def _describe(msg) -> dict:
-    """Return all field names and values from a protobuf message."""
-    if msg is None:
+def _walk(msg, depth=0) -> dict:
+    """
+    Recursively dump a protobuf message into a plain dict.
+    Sub-messages are expanded one level; scalars are returned as-is.
+    Stops at depth 3 to avoid unbounded recursion on repeated fields.
+    """
+    if msg is None or depth > 3:
         return {}
     try:
-        return {f.name: getattr(msg, f.name, None) for f in msg.DESCRIPTOR.fields}
+        out = {}
+        for field in msg.DESCRIPTOR.fields:
+            val = getattr(msg, field.name, None)
+            # Sub-message: recurse
+            if hasattr(val, "DESCRIPTOR"):
+                out[field.name] = _walk(val, depth + 1)
+            # Repeated field: summarise as list of first few
+            elif hasattr(val, "__iter__") and not isinstance(val, (str, bytes)):
+                items = list(val)[:5]
+                out[field.name] = items if items else []
+            else:
+                out[field.name] = val
+        return out
     except AttributeError:
-        return {"error": "DESCRIPTOR not available on this object"}
+        return {"_raw": str(msg)}
 
 
 @router.get("/debug/temps")
 async def debug_temps():
     """
-    Dump every field in dish_thermal_control (and device_state temperature
-    fields) so you can see which field names your firmware actually uses.
+    Dump every field in the raw DishGetStatusResponse so we can find
+    where temperature data lives on this specific firmware version.
     """
     try:
         raw = await asyncio.get_event_loop().run_in_executor(
@@ -36,17 +52,4 @@ async def debug_temps():
     except Exception as exc:
         raise HTTPException(status_code=503, detail=str(exc))
 
-    result = {}
-
-    thermal = getattr(raw, "dish_thermal_control", None)
-    result["dish_thermal_control_present"] = thermal is not None
-    result["dish_thermal_control_fields"]  = _describe(thermal)
-
-    state = getattr(raw, "device_state", None)
-    if state is not None:
-        all_state = _describe(state)
-        result["device_state_temp_fields"] = {
-            k: v for k, v in all_state.items() if "temp" in k.lower()
-        }
-
-    return result
+    return _walk(raw)
