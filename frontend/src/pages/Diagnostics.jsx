@@ -323,6 +323,16 @@ export default function Diagnostics() {
                 </span>
               ) : '—'}
             </StatRow>
+            <StatRow label="Latitude">
+              {gpsData?.latitude != null
+                ? <span className="mono" style={{ fontSize: 11 }}>{gpsData.latitude.toFixed(6)}°</span>
+                : <span style={{ color: '#2a3344' }}>—</span>}
+            </StatRow>
+            <StatRow label="Longitude">
+              {gpsData?.longitude != null
+                ? <span className="mono" style={{ fontSize: 11 }}>{gpsData.longitude.toFixed(6)}°</span>
+                : <span style={{ color: '#2a3344' }}>—</span>}
+            </StatRow>
             <StatRow label="Pointing">
               {azimuth != null && elevation != null
                 ? <span className="mono" style={{ fontSize: 11 }}>
