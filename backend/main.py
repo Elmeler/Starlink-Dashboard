@@ -33,6 +33,12 @@ SERVE_STATIC = os.getenv("SERVE_STATIC", "0") == "1" and STATIC_DIR.exists()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    restart_reason = os.environ.pop("SLMONITOR_RESTART_REASON", None)
+    if restart_reason:
+        print("\n" + "─" * 60, flush=True)
+        print(f"  Starlink Monitor  ·  restarted (reason: {restart_reason})", flush=True)
+        print("─" * 60 + "\n", flush=True)
+
     store.init()
     store.prune()
     logger.info("Starting telemetry polling -> %s", DISH_ADDRESS)

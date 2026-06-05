@@ -57,6 +57,11 @@ async def restart_backend():
 
     async def _restart():
         await asyncio.sleep(0.4)
+        print("\n" + "─" * 60, flush=True)
+        print("  Starlink Monitor  ·  restarting (requested via dashboard UI)", flush=True)
+        print("─" * 60 + "\n", flush=True)
+        # Pass restart reason through to the new process via env var
+        os.environ["SLMONITOR_RESTART_REASON"] = "ui"
         # Re-run as "python -m uvicorn <args>" so Python doesn't add the
         # uvicorn package directory to sys.path[0], which would cause
         # uvicorn/logging.py to shadow stdlib logging (circular import).
