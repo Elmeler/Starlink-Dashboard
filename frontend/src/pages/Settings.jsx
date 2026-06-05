@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { IconPlugConnected, IconPlugConnectedX, IconRefresh, IconRadar, IconPower, IconAnchor } from '@tabler/icons-react'
+import { IconPlugConnected, IconPlugConnectedX, IconRefresh, IconRadar, IconPower, IconAnchor, IconServer } from '@tabler/icons-react'
 import { useLive } from '../App'
 
 // ── sub-components ────────────────────────────────────────────────────────────
@@ -358,6 +358,20 @@ export default function Settings() {
           icon={IconRadar}
           accentBg="#0a2d6e" accentColor="#4d9fff" accentBorder="#1a4a9e"
           onConfirm="/api/control/unstow"
+        />
+      </Card>
+
+      {/* ── System ── */}
+      <Card title="System">
+        <p style={{ fontSize: 11, color: '#4a5568' }}>
+          Restart the dashboard backend. The page will reconnect automatically within a few seconds.
+        </p>
+        <ConfirmButton
+          label="Restart backend"
+          description="Re-executes the Python process — clears in-memory history buffer"
+          icon={IconServer}
+          accentBg="#0a2d6e" accentColor="#4d9fff" accentBorder="#1a4a9e"
+          onConfirm="/api/control/restart-backend"
         />
       </Card>
 

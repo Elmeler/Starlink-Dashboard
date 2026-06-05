@@ -1,7 +1,9 @@
-"""Dish control endpoints — reboot, stow, unstow."""
+"""Dish control endpoints — reboot, stow, unstow, backend restart."""
 
 import asyncio
 import logging
+import os
+import sys
 
 import grpc
 import starlink_grpc
@@ -42,6 +44,23 @@ async def unstow():
     """Take the dish out of stow and resume normal operation."""
     logger.info("Dish unstow requested via UI")
     return await _run(lambda: starlink_grpc.set_stow_state(unstow=True, context=telemetry.get_context()))
+
+
+@router.post("/control/restart-backend")
+async def restart_backend():
+    """
+    Restart the backend process by re-executing it via os.execv.
+    A short delay lets the HTTP response reach the client first.
+    The frontend WebSocket will drop and reconnect automatically.
+    """
+    logger.info("Backend restart requested via UI")
+
+    async def _restart():
+        await asyncio.sleep(0.4)
+        os.execv(sys.executable, [sys.executable] + sys.argv)
+
+    asyncio.create_task(_restart())
+    return {"ok": True}
 
 
 @router.post("/control/gps/enable")
