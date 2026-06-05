@@ -52,7 +52,10 @@ def _walk(msg, depth=0) -> dict:
 
 @router.get("/debug/wan")
 async def debug_wan(router_address: str = "192.168.1.1:9000"):
-    """Dump the raw WAN/network info response from the Starlink router."""
+    """
+    Step 1: list every field on the router Request message.
+    Step 2: try each field that looks network/WAN related and dump its response.
+    """
     import grpc
     import yagrc.reflector as reflector
 
@@ -67,8 +70,18 @@ async def debug_wan(router_address: str = "192.168.1.1:9000"):
             Request    = grclient.message_class("SpaceX.API.Device.Request")
             stub       = DeviceStub(channel)
 
+            # List every field on the Request message
+            all_request_fields = [f.name for f in Request.DESCRIPTOR.fields]
+
+            # Try the ones that look relevant
+            keywords = ("network", "wan", "wifi", "status", "ip", "dns", "dhcp", "diag")
+            candidates = [
+                f for f in all_request_fields
+                if any(k in f.lower() for k in keywords)
+            ]
+
             results = {}
-            for req_name in ("get_network_info", "wifi_get_status", "wifi_get_diagnostics"):
+            for req_name in candidates:
                 try:
                     resp = stub.Handle(Request(**{req_name: {}}), timeout=5)
                     inner = getattr(resp, req_name, None)
@@ -76,7 +89,10 @@ async def debug_wan(router_address: str = "192.168.1.1:9000"):
                 except Exception as exc:
                     results[req_name] = f"<error: {exc}>"
 
-        return results
+        return {
+            "all_request_fields": all_request_fields,
+            "network_related_responses": results,
+        }
     except Exception as exc:
         raise HTTPException(status_code=503, detail=str(exc))
 
