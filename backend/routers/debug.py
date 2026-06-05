@@ -50,6 +50,32 @@ def _walk(msg, depth=0) -> dict:
     return out
 
 
+@router.get("/debug/gnss")
+async def debug_gnss():
+    """Raw get_gnss_measurement response — per-satellite data if available."""
+    try:
+        raw = await asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: starlink_grpc.get_status(context=telemetry.get_context()),
+        )
+        # get_gnss_measurement uses the same channel but a different request
+        import grpc as _grpc
+        def _fetch():
+            def grpc_call(channel):
+                if starlink_grpc.imports_pending:
+                    starlink_grpc.resolve_imports(channel)
+                stub = starlink_grpc.DeviceStub(channel)
+                Request = starlink_grpc.Request
+                resp = stub.Handle(Request(get_gnss_measurement={}), timeout=10)
+                return getattr(resp, "get_gnss_measurement", None)
+            return starlink_grpc.call_with_channel(grpc_call, context=telemetry.get_context())
+
+        result = await asyncio.get_event_loop().run_in_executor(None, _fetch)
+        return _walk(result)
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+
+
 @router.get("/debug/location")
 async def debug_location():
     """Raw get_location response — shows exactly what the dish returns."""
