@@ -144,12 +144,13 @@ async def _poll_history() -> None:
 def _fetch_status() -> dict:
     global _context
     try:
-        status, obstruction, alerts_raw = starlink_grpc.status_data(context=_context)
-    except (starlink_grpc.GrpcError, grpc.RpcError) as exc:
+        raw = starlink_grpc.get_status(context=_context)
+        status, obstruction, alerts_raw = starlink_grpc.status_data(context=_context, status=raw)
+    except (starlink_grpc.GrpcError, grpc.RpcError, AttributeError, ValueError) as exc:
         raise starlink_grpc.GrpcError(exc) from exc
 
     # temperatures live in the raw protobuf, not in the high-level dict
-    dish_temp, board_temp = _read_temps()
+    dish_temp, board_temp = _read_temps(raw)
 
     active_alerts = parse_alerts(alerts_raw)
 
@@ -177,7 +178,7 @@ def _fetch_status() -> dict:
     }
 
 
-def _read_temps() -> tuple[Optional[float], Optional[float]]:
+def _read_temps(raw) -> tuple[Optional[float], Optional[float]]:
     """
     Read dish and board temperatures from the raw protobuf response.
     Field paths vary by firmware generation; try all known names.
@@ -186,18 +187,18 @@ def _read_temps() -> tuple[Optional[float], Optional[float]]:
     dish_temp  = None
     board_temp = None
     try:
-        raw = starlink_grpc.get_status(context=_context)
-
-        # Gen2/Gen3: dish_thermal_control sub-message
+        # Gen3+: dish_thermal_control sub-message
         thermal = getattr(raw, "dish_thermal_control", None)
         if thermal is not None:
-            dish_temp  = _safe_temp(getattr(thermal, "rack_temp_celsius",   None))
-            board_temp = _safe_temp(getattr(thermal, "outlet_temp_celsius", None))
-            # Some firmwares use slightly different names
-            if dish_temp  is None:
-                dish_temp  = _safe_temp(getattr(thermal, "dish_temp_celsius",  None))
+            dish_temp  = _safe_temp(getattr(thermal, "inlet_temp_celsius",   None))
+            board_temp = _safe_temp(getattr(thermal, "outlet_temp_celsius",  None))
+            # Older Gen3 / Gen2 field name variants
+            if dish_temp is None:
+                dish_temp  = _safe_temp(getattr(thermal, "rack_temp_celsius",   None))
+            if dish_temp is None:
+                dish_temp  = _safe_temp(getattr(thermal, "dish_temp_celsius",   None))
             if board_temp is None:
-                board_temp = _safe_temp(getattr(thermal, "board_temp_celsius", None))
+                board_temp = _safe_temp(getattr(thermal, "board_temp_celsius",  None))
 
         # Fallback: top-level device_state (older firmwares)
         if dish_temp is None:
@@ -213,7 +214,8 @@ def _read_temps() -> tuple[Optional[float], Optional[float]]:
 def _safe_temp(value) -> Optional[float]:
     try:
         v = float(value)
-        return round(v, 1) if v > -200 else None  # protobuf default 0.0 ≠ missing
+        # Reject 0.0 (protobuf unset default), NaN, and physically impossible values
+        return round(v, 1) if -100 < v < 200 and v != 0 else None
     except (TypeError, ValueError):
         return None
 

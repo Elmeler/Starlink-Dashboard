@@ -798,12 +798,15 @@ def get_id(context: Optional[ChannelContext] = None) -> str:
 
 
 def status_data(
-        context: Optional[ChannelContext] = None) -> Tuple[StatusDict, ObstructionDict, AlertDict]:
+        context: Optional[ChannelContext] = None,
+        status=None) -> Tuple[StatusDict, ObstructionDict, AlertDict]:
     """Fetch current status data.
 
     Args:
         context (ChannelContext): Optionally provide a channel for reuse
             across repeated calls.
+        status: Optionally provide a pre-fetched raw status protobuf object
+            (e.g. from a prior call to get_status) to avoid a second gRPC call.
 
     Returns:
         A tuple with 3 dicts, mapping status data field names, obstruction
@@ -813,10 +816,11 @@ def status_data(
     Raises:
         GrpcError: Failed getting status info from the Starlink user terminal.
     """
-    try:
-        status = get_status(context)
-    except (AttributeError, ValueError, grpc.RpcError) as e:
-        raise GrpcError(e) from e
+    if status is None:
+        try:
+            status = get_status(context)
+        except (AttributeError, ValueError, grpc.RpcError) as e:
+            raise GrpcError(e) from e
 
     try:
         if status.HasField("outage"):
