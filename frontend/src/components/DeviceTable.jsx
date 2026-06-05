@@ -30,7 +30,7 @@ const DEVICE_ICONS = {
   unknown: IconDeviceUnknown,
 }
 
-const SORTABLE_COLS = ['hostname', 'ip', 'signal_dbm', 'lease_expiry']
+const SORTABLE_COLS = ['hostname', 'ip', 'signal_dbm', 'snr', 'rx_mbps', 'tx_mbps', 'lease_expiry']
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -154,12 +154,15 @@ export default function DeviceTable({ devices = [], loading = false }) {
       <div className="rounded-lg overflow-hidden" style={{ border: '1px solid #1e2330' }}>
         <table className="w-full" style={{ borderCollapse: 'collapse', tableLayout: 'fixed' }}>
           <colgroup>
-            <col style={{ width: 32  }} />  {/* icon */}
-            <col style={{ width: '22%' }} />  {/* hostname */}
-            <col style={{ width: '16%' }} />  {/* MAC */}
-            <col style={{ width: '13%' }} />  {/* IP */}
-            <col style={{ width: 88  }} />  {/* band */}
-            <col style={{ width: 84  }} />  {/* signal */}
+            <col style={{ width: 32   }} />  {/* icon */}
+            <col style={{ width: '20%' }} />  {/* hostname */}
+            <col style={{ width: '13%' }} />  {/* MAC */}
+            <col style={{ width: '11%' }} />  {/* IP */}
+            <col style={{ width: 76   }} />  {/* band */}
+            <col style={{ width: 76   }} />  {/* signal */}
+            <col style={{ width: 64   }} />  {/* SNR */}
+            <col style={{ width: 72   }} />  {/* rx */}
+            <col style={{ width: 72   }} />  {/* tx */}
             <col />                           {/* lease */}
           </colgroup>
 
@@ -169,12 +172,15 @@ export default function DeviceTable({ devices = [], loading = false }) {
               <th style={{ padding: '7px 6px' }} />
 
               {[
-                { key: 'hostname',     label: 'Hostname'     },
-                { key: 'mac',          label: 'MAC'          },
-                { key: 'ip',           label: 'IP'           },
-                { key: 'band',         label: 'Band'         },
-                { key: 'signal_dbm',   label: 'Signal'       },
-                { key: 'lease_expiry', label: 'Lease'        },
+                { key: 'hostname',     label: 'Hostname' },
+                { key: 'mac',          label: 'MAC'      },
+                { key: 'ip',           label: 'IP'       },
+                { key: 'band',         label: 'Band'     },
+                { key: 'signal_dbm',   label: 'Signal'   },
+                { key: 'snr',          label: 'SNR'      },
+                { key: 'rx_mbps',      label: 'RX'       },
+                { key: 'tx_mbps',      label: 'TX'       },
+                { key: 'lease_expiry', label: 'Lease'    },
               ].map(({ key, label }) => (
                 <th
                   key={key}
@@ -205,7 +211,7 @@ export default function DeviceTable({ devices = [], loading = false }) {
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={7} className="text-center py-8" style={{ color: '#4a5568', fontSize: 12 }}>
+                <td colSpan={10} className="text-center py-8" style={{ color: '#4a5568', fontSize: 12 }}>
                   Loading…
                 </td>
               </tr>
@@ -213,7 +219,7 @@ export default function DeviceTable({ devices = [], loading = false }) {
 
             {!loading && filtered.length === 0 && (
               <tr>
-                <td colSpan={7} className="text-center py-10">
+                <td colSpan={10} className="text-center py-10">
                   <p style={{ color: '#2a3344', fontSize: 12 }}>
                     {devices.length === 0
                       ? 'No devices — requires Starlink router on the local network'
@@ -238,7 +244,18 @@ export default function DeviceTable({ devices = [], loading = false }) {
                 >
                   {/* Device icon */}
                   <td style={{ padding: '6px 6px 6px 10px' }}>
-                    <Icon size={15} stroke={1.5} style={{ color: '#2a3344' }} />
+                    <div style={{ position: 'relative', lineHeight: 0 }}>
+                      <Icon size={15} stroke={1.5} style={{ color: '#2a3344' }} />
+                      {d.active && (
+                        <span
+                          style={{
+                            position: 'absolute', bottom: -1, right: -2,
+                            width: 5, height: 5, borderRadius: '50%',
+                            background: '#22c55e',
+                          }}
+                        />
+                      )}
+                    </div>
                   </td>
 
                   {/* Hostname */}
@@ -255,7 +272,7 @@ export default function DeviceTable({ devices = [], loading = false }) {
 
                   {/* IP */}
                   <td style={{ padding: '6px 8px' }}>
-                    <span className="mono" style={{ fontSize: 11, color: '#9db4cc' }}>
+                    <span className="mono" style={{ fontSize: 11, color: d.ip ? '#9db4cc' : '#2a3344' }}>
                       {d.ip || '—'}
                     </span>
                   </td>
@@ -263,10 +280,7 @@ export default function DeviceTable({ devices = [], loading = false }) {
                   {/* Band badge */}
                   <td style={{ padding: '6px 8px' }}>
                     {d.band && d.band !== 'unknown' ? (
-                      <span
-                        className="inline-block rounded px-1.5 py-0.5"
-                        style={{ fontSize: 10, fontWeight: 500, ...bandSty }}
-                      >
+                      <span className="inline-block rounded px-1.5 py-0.5" style={{ fontSize: 10, fontWeight: 500, ...bandSty }}>
                         {d.band}
                       </span>
                     ) : (
@@ -277,15 +291,37 @@ export default function DeviceTable({ devices = [], loading = false }) {
                   {/* Signal */}
                   <td style={{ padding: '6px 8px' }}>
                     {d.signal_dbm != null ? (
-                      <span
-                        className="mono"
-                        style={{ fontSize: 11, color: signalColor(d.signal_dbm) }}
-                      >
+                      <span className="mono" style={{ fontSize: 11, color: signalColor(d.signal_dbm) }}>
                         {d.signal_dbm} dBm
                       </span>
-                    ) : (
-                      <span style={{ color: '#2a3344', fontSize: 11 }}>—</span>
-                    )}
+                    ) : <span style={{ color: '#2a3344', fontSize: 11 }}>—</span>}
+                  </td>
+
+                  {/* SNR */}
+                  <td style={{ padding: '6px 8px' }}>
+                    {d.snr != null ? (
+                      <span className="mono" style={{ fontSize: 11, color: '#4a5568' }}>
+                        {d.snr.toFixed(1)} dB
+                      </span>
+                    ) : <span style={{ color: '#2a3344', fontSize: 11 }}>—</span>}
+                  </td>
+
+                  {/* RX */}
+                  <td style={{ padding: '6px 8px' }}>
+                    {d.rx_mbps != null ? (
+                      <span className="mono" style={{ fontSize: 11, color: '#4d9fff' }}>
+                        {d.rx_mbps.toFixed(1)}
+                      </span>
+                    ) : <span style={{ color: '#2a3344', fontSize: 11 }}>—</span>}
+                  </td>
+
+                  {/* TX */}
+                  <td style={{ padding: '6px 8px' }}>
+                    {d.tx_mbps != null ? (
+                      <span className="mono" style={{ fontSize: 11, color: '#22c55e' }}>
+                        {d.tx_mbps.toFixed(1)}
+                      </span>
+                    ) : <span style={{ color: '#2a3344', fontSize: 11 }}>—</span>}
                   </td>
 
                   {/* Lease expiry */}
