@@ -51,9 +51,9 @@ def _parse_client(client) -> dict:
     import time
 
     signal    = getattr(client, "signal_strength", None)
-    iface_name = _str(getattr(client, "iface_name", None))
-    iface_enum = getattr(client, "iface", None)
-    band       = _map_band(iface_name, iface_enum)
+    iface_name      = _str(getattr(client, "iface_name", None))
+    iface_enum_name = _iface_enum_name(client)
+    band            = _map_band(iface_name, iface_enum_name)
 
     secs_left = getattr(client, "seconds_until_dhcp_lease_expires", None)
     lease     = (int(time.time() + float(secs_left))
@@ -86,37 +86,39 @@ def _safe_float(value) -> float | None:
         return None
 
 
-def _map_band(iface_name: str, iface_enum=None) -> str:
-    # iface_name (e.g. "ra0", "rax0") is most reliable when present
+def _iface_enum_name(client) -> str:
+    """
+    Return the string name of the iface enum (e.g. 'ETH', 'RF_2GHZ').
+    yagrc returns enum fields as integers; the name lives on the field
+    descriptor, not on the integer value itself.
+    """
+    try:
+        val        = int(getattr(client, "iface", 0))
+        field_desc = client.DESCRIPTOR.fields_by_name["iface"]
+        return field_desc.enum_type.values_by_number[val].name
+    except Exception:
+        return str(getattr(client, "iface", ""))
+
+
+def _map_band(iface_name: str, iface_enum_name: str = "") -> str:
+    # iface_name (e.g. "ra0", "rax0") is populated for Wi-Fi clients
     n = (iface_name or "").lower()
     if n:
         if "eth" in n or "lan" in n:
             return "wired"
-        if "rax" in n or "5g" in n:   # rax0 = 5 GHz
+        if "rax" in n or "5g" in n:   # rax0 = 5 GHz radio
             return "5GHz"
-        if "ra" in n:                  # ra0, ra1, ra2 = 2.4 GHz
+        if "ra" in n:                  # ra0/ra1/ra2 = 2.4 GHz
             return "2.4GHz"
 
-    # Fall back to the iface enum value (yagrc returns it as an int;
-    # str() on a proto enum gives its integer value, not its name, so
-    # we look it up via the DESCRIPTOR if available)
-    if iface_enum is not None:
-        try:
-            enum_name = iface_enum.DESCRIPTOR.name  # e.g. "ETH", "RF_2GHZ"
-        except AttributeError:
-            try:
-                # EnumValueDescriptor path used by some yagrc versions
-                desc = type(iface_enum).DESCRIPTOR
-                enum_name = desc.values_by_number[int(iface_enum)].name
-            except Exception:
-                enum_name = str(iface_enum)
-        s = enum_name.upper()
-        if "ETH" in s:
-            return "wired"
-        if "5GHZ" in s or "5G" in s:
-            return "5GHz"
-        if "2GHZ" in s or "2G" in s or "RF" in s:
-            return "2.4GHz"
+    # Fall back to the resolved enum name string
+    s = (iface_enum_name or "").upper()
+    if "ETH" in s:
+        return "wired"
+    if "5GHZ" in s or "5G" in s:
+        return "5GHz"
+    if "2GHZ" in s or "2G" in s or "RF" in s:
+        return "2.4GHz"
 
     return "unknown"
 
