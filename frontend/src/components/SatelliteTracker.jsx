@@ -8,7 +8,7 @@
 
 import { useMemo, useId } from 'react'
 
-const RINGS = [60, 30]     // elevation rings to draw
+const RINGS = [60, 30]
 const CARDINALS = ['N', 'E', 'S', 'W']
 
 function azXY(cx, cy, r, azDeg) {
@@ -20,7 +20,7 @@ export default function SatelliteTracker({
   azimuth   = null,
   elevation = null,
   size      = 160,
-  history   = [],   // [{azimuth, elevation}] for trailing arc (Diagnostics page)
+  history   = [],
 }) {
   const cx   = size / 2
   const cy   = size / 2
@@ -33,7 +33,6 @@ export default function SatelliteTracker({
     return { x, y }
   }, [azimuth, elevation, cx, cy, maxR])
 
-  // Optional trailing path
   const trailPath = useMemo(() => {
     if (!history.length) return ''
     const pts = history.map(({ azimuth: az, elevation: el }) => {
@@ -48,7 +47,7 @@ export default function SatelliteTracker({
     <div className="inline-flex flex-col items-center gap-1">
       <svg width={size} height={size} style={{ display: 'block', overflow: 'visible' }}>
         {/* Background */}
-        <circle cx={cx} cy={cy} r={maxR} fill="#0a0c10" stroke="#1e2330" strokeWidth={1} />
+        <circle cx={cx} cy={cy} r={maxR} fill="var(--sl-bg)" stroke="var(--sl-border)" strokeWidth={1} />
 
         {/* Elevation rings */}
         {RINGS.map(elev => (
@@ -57,15 +56,15 @@ export default function SatelliteTracker({
             cx={cx} cy={cy}
             r={Math.cos(elev * Math.PI / 180) * maxR}
             fill="none"
-            stroke="#1e2330"
+            stroke="var(--sl-border)"
             strokeWidth={0.6}
             strokeDasharray="2 3"
           />
         ))}
 
         {/* Cross-hairs */}
-        <line x1={cx} y1={cy - maxR} x2={cx} y2={cy + maxR} stroke="#1e2330" strokeWidth={0.5} />
-        <line x1={cx - maxR} y1={cy} x2={cx + maxR} y2={cy} stroke="#1e2330" strokeWidth={0.5} />
+        <line x1={cx} y1={cy - maxR} x2={cx} y2={cy + maxR} stroke="var(--sl-border)" strokeWidth={0.5} />
+        <line x1={cx - maxR} y1={cy} x2={cx + maxR} y2={cy} stroke="var(--sl-border)" strokeWidth={0.5} />
 
         {/* Cardinal labels */}
         {CARDINALS.map((lbl, i) => {
@@ -74,7 +73,7 @@ export default function SatelliteTracker({
             <text
               key={lbl} x={x} y={y}
               textAnchor="middle" dominantBaseline="middle"
-              fontSize={8} fill="#4a5568"
+              fontSize={8} fill="var(--sl-text-lo)"
               fontFamily="Space Grotesk, sans-serif"
             >
               {lbl}
@@ -88,7 +87,7 @@ export default function SatelliteTracker({
         )}
 
         {/* Center dot */}
-        <circle cx={cx} cy={cy} r={2} fill="#e2e8f0" />
+        <circle cx={cx} cy={cy} r={2} fill="var(--sl-text-hi)" />
 
         {/* Satellite dot */}
         {dotPos ? (
@@ -103,7 +102,7 @@ export default function SatelliteTracker({
           <text
             x={cx} y={cy}
             textAnchor="middle" dominantBaseline="middle"
-            fontSize={9} fill="#2a3344"
+            fontSize={9} fill="var(--sl-text-dim)"
             fontFamily="Space Grotesk, sans-serif"
           >
             no data
@@ -111,7 +110,7 @@ export default function SatelliteTracker({
         )}
       </svg>
 
-      <p style={{ fontSize: 9, color: '#4a5568' }}>
+      <p style={{ fontSize: 9, color: 'var(--sl-text-lo)' }}>
         {azimuth != null
           ? `Az ${azimuth.toFixed(1)}°  El ${elevation?.toFixed(1)}°`
           : 'no pointing data'}

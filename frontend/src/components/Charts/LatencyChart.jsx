@@ -2,8 +2,9 @@ import {
   ResponsiveContainer, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts'
+import { useContext } from 'react'
+import { LiveContext } from '../../App'
 
-const GRID     = '#1e2330'
 const LAT_CLR  = '#a78bfa'
 const DROP_CLR = '#f59e0b'
 
@@ -13,25 +14,34 @@ function fmtTime(ts) {
   return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`
 }
 
-function CustomTooltip({ active, payload, label }) {
-  if (!active || !payload?.length) return null
-  return (
-    <div
-      className="rounded px-2 py-1.5 text-xs"
-      style={{ background: '#0d1017', border: '1px solid #1e2330' }}
-    >
-      <p style={{ color: '#4a5568', marginBottom: 4 }}>{fmtTime(label)}</p>
-      {payload.map(p => (
-        <p key={p.dataKey} style={{ color: p.color }}>
-          {p.name}: {p.value != null ? p.value.toFixed(p.dataKey === 'drop_rate_pct' ? 2 : 0) : '—'}
-          {p.dataKey === 'drop_rate_pct' ? ' %' : ' ms'}
-        </p>
-      ))}
-    </div>
-  )
-}
-
 export default function LatencyChart({ data = [] }) {
+  const ctx = useContext(LiveContext)
+  const isLight = ctx?.settings?.theme === 'light'
+
+  const GRID     = isLight ? '#e2e8f0' : '#1e2330'
+  const TICK     = { fontSize: 9, fill: isLight ? '#64748b' : '#4a5568' }
+  const TIP_BG   = isLight ? '#ffffff' : '#0d1017'
+  const TIP_BORD = isLight ? '#e2e8f0' : '#1e2330'
+  const TIP_TEXT = isLight ? '#64748b' : '#4a5568'
+
+  function CustomTooltip({ active, payload, label }) {
+    if (!active || !payload?.length) return null
+    return (
+      <div
+        className="rounded px-2 py-1.5 text-xs"
+        style={{ background: TIP_BG, border: `1px solid ${TIP_BORD}` }}
+      >
+        <p style={{ color: TIP_TEXT, marginBottom: 4 }}>{fmtTime(label)}</p>
+        {payload.map(p => (
+          <p key={p.dataKey} style={{ color: p.color }}>
+            {p.name}: {p.value != null ? p.value.toFixed(p.dataKey === 'drop_rate_pct' ? 2 : 0) : '—'}
+            {p.dataKey === 'drop_rate_pct' ? ' %' : ' ms'}
+          </p>
+        ))}
+      </div>
+    )
+  }
+
   return (
     <div>
       <div className="flex items-center gap-4 mb-2">
@@ -53,7 +63,7 @@ export default function LatencyChart({ data = [] }) {
           <XAxis
             dataKey="timestamp"
             tickFormatter={fmtTime}
-            tick={{ fontSize: 9, fill: '#4a5568' }}
+            tick={TICK}
             tickLine={false}
             axisLine={false}
             interval="preserveStartEnd"
@@ -63,7 +73,7 @@ export default function LatencyChart({ data = [] }) {
           {/* Left Y axis: latency ms */}
           <YAxis
             yAxisId="lat"
-            tick={{ fontSize: 9, fill: '#4a5568' }}
+            tick={TICK}
             tickLine={false}
             axisLine={false}
             tickFormatter={v => `${v}`}
@@ -74,7 +84,7 @@ export default function LatencyChart({ data = [] }) {
           <YAxis
             yAxisId="drop"
             orientation="right"
-            tick={{ fontSize: 9, fill: '#4a5568' }}
+            tick={TICK}
             tickLine={false}
             axisLine={false}
             tickFormatter={v => `${v}%`}

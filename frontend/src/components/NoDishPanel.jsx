@@ -20,14 +20,14 @@ function Step({ icon: Icon, title, children }) {
   return (
     <div
       className="flex gap-3 rounded-lg p-3"
-      style={{ background: '#0a0c10', border: '1px solid #1e2330' }}
+      style={{ background: 'var(--sl-bg)', border: '1px solid var(--sl-border)' }}
     >
       <div className="shrink-0 mt-0.5">
-        <Icon size={16} stroke={1.8} style={{ color: '#4d9fff' }} />
+        <Icon size={16} stroke={1.8} style={{ color: 'var(--sl-accent)' }} />
       </div>
       <div className="space-y-1 min-w-0">
-        <p style={{ fontSize: 12, color: '#e2e8f0', fontWeight: 500 }}>{title}</p>
-        <div style={{ fontSize: 11, color: '#4a5568', lineHeight: 1.6 }}>
+        <p style={{ fontSize: 12, color: 'var(--sl-text-hi)', fontWeight: 500 }}>{title}</p>
+        <div style={{ fontSize: 11, color: 'var(--sl-text-lo)', lineHeight: 1.6 }}>
           {children}
         </div>
       </div>
@@ -41,11 +41,11 @@ function Code({ children }) {
       className="mono"
       style={{
         fontSize: 10,
-        background: '#111520',
-        border: '1px solid #1e2330',
+        background: 'var(--sl-surface-alt)',
+        border: '1px solid var(--sl-border)',
         borderRadius: 3,
         padding: '1px 5px',
-        color: '#4d9fff',
+        color: 'var(--sl-accent)',
       }}
     >
       {children}
@@ -60,10 +60,10 @@ export function NoDishBanner() {
   return (
     <div
       className="flex items-center gap-3 rounded-lg px-3 py-2.5 mb-2"
-      style={{ background: '#2d1200', border: '1px solid #f59e0b' }}
+      style={{ background: 'var(--sl-warning-panel)', border: '1px solid var(--sl-warning)' }}
     >
-      <IconAlertTriangle size={14} stroke={2} style={{ color: '#f59e0b', flexShrink: 0 }} />
-      <span style={{ fontSize: 11, color: '#f59e0b' }}>
+      <IconAlertTriangle size={14} stroke={2} style={{ color: 'var(--sl-warning)', flexShrink: 0 }} />
+      <span style={{ fontSize: 11, color: 'var(--sl-warning)' }}>
         Lost contact with dish at <span className="mono" style={{ fontSize: 10 }}>{settings.dishAddress}</span>
         {' '}— showing last known data. Reconnecting&hellip;
       </span>
@@ -76,7 +76,7 @@ export function NoDishBanner() {
 export default function NoDishPanel() {
   const { settings } = useLive()
   const [checking, setChecking] = useState(false)
-  const [result,   setResult]   = useState(null)   // null | 'ok' | 'fail' | {error}
+  const [result,   setResult]   = useState(null)
 
   async function retry() {
     setChecking(true)
@@ -99,24 +99,24 @@ export default function NoDishPanel() {
         {/* ── header ── */}
         <div
           className="rounded-lg p-4 text-center"
-          style={{ background: '#0d1017', border: '1px solid #1e2330' }}
+          style={{ background: 'var(--sl-surface)', border: '1px solid var(--sl-border)' }}
         >
           <div className="flex justify-center mb-3">
             <div
               className="rounded-full flex items-center justify-center"
-              style={{ width: 44, height: 44, background: '#3b0c0c', border: '1px solid #ef4444' }}
+              style={{ width: 44, height: 44, background: 'var(--sl-danger-dim)', border: '1px solid var(--sl-danger)' }}
             >
-              <IconWifi size={22} stroke={1.6} style={{ color: '#ef4444' }} />
+              <IconWifi size={22} stroke={1.6} style={{ color: 'var(--sl-danger)' }} />
             </div>
           </div>
-          <p style={{ fontSize: 15, color: '#e2e8f0', fontWeight: 600 }}>
+          <p style={{ fontSize: 15, color: 'var(--sl-text-hi)', fontWeight: 600 }}>
             Dish not reachable
           </p>
-          <p style={{ fontSize: 11, color: '#4a5568', marginTop: 4 }}>
+          <p style={{ fontSize: 11, color: 'var(--sl-text-lo)', marginTop: 4 }}>
             Could not connect to{' '}
             <code
               className="mono"
-              style={{ fontSize: 10, color: '#4d9fff', background: '#0a2d6e', padding: '1px 6px', borderRadius: 3 }}
+              style={{ fontSize: 10, color: 'var(--sl-accent)', background: 'var(--sl-accent-bg)', padding: '1px 6px', borderRadius: 3 }}
             >
               {settings.dishAddress}
             </code>
@@ -129,20 +129,20 @@ export default function NoDishPanel() {
             onClick={retry}
             disabled={checking}
             className="flex items-center gap-2 rounded-lg px-5 py-2 font-medium transition-opacity disabled:opacity-50"
-            style={{ fontSize: 12, background: '#0a2d6e', color: '#4d9fff', border: '1px solid #1a4a9e' }}
+            style={{ fontSize: 12, background: 'var(--sl-accent-bg)', color: 'var(--sl-accent)', border: '1px solid var(--sl-accent-border)' }}
           >
             <IconRefresh size={14} stroke={2} className={checking ? 'animate-spin' : ''} />
             {checking ? 'Checking…' : 'Retry connection'}
           </button>
 
           {result === 'ok' && (
-            <div className="flex items-center gap-2" style={{ fontSize: 11, color: '#22c55e' }}>
+            <div className="flex items-center gap-2" style={{ fontSize: 11, color: 'var(--sl-success)' }}>
               <IconCircleCheck size={13} stroke={2} />
               Dish reachable — data should appear shortly
             </div>
           )}
           {result?.error && (
-            <div className="flex items-center gap-2" style={{ fontSize: 11, color: '#ef4444' }}>
+            <div className="flex items-center gap-2" style={{ fontSize: 11, color: 'var(--sl-danger)' }}>
               <IconCircleX size={13} stroke={2} />
               {result.error}
             </div>
@@ -152,11 +152,11 @@ export default function NoDishPanel() {
         {/* ── troubleshooting steps ── */}
         <div
           className="rounded-lg p-4 space-y-1"
-          style={{ background: '#0d1017', border: '1px solid #1e2330' }}
+          style={{ background: 'var(--sl-surface)', border: '1px solid var(--sl-border)' }}
         >
           <p
             className="font-sans uppercase tracking-widest mb-3"
-            style={{ fontSize: 9, color: '#2a3344', letterSpacing: '0.12em' }}
+            style={{ fontSize: 9, color: 'var(--sl-text-dim)', letterSpacing: '0.12em' }}
           >
             Troubleshooting
           </p>
@@ -184,7 +184,7 @@ export default function NoDishPanel() {
             </Step>
 
             <Step icon={IconPlug} title="Bypass / IP Passthrough mode">
-              If the Starlink dish is in <strong style={{ color: '#e2e8f0' }}>bypass mode</strong>{' '}
+              If the Starlink dish is in <strong style={{ color: 'var(--sl-text-hi)' }}>bypass mode</strong>{' '}
               (plugged directly into your own router), the gRPC API is still available at{' '}
               <Code>192.168.100.1:9200</Code> as long as your router forwards or has a route to
               that subnet. Some routers require adding a static route manually:{' '}
@@ -206,7 +206,7 @@ export default function NoDishPanel() {
               If you have changed it or are using a custom routing setup, update it in{' '}
               <NavLink
                 to="/settings"
-                style={{ color: '#4d9fff', textDecoration: 'underline' }}
+                style={{ color: 'var(--sl-accent)', textDecoration: 'underline' }}
               >
                 Settings
               </NavLink>
@@ -221,7 +221,7 @@ export default function NoDishPanel() {
           <NavLink
             to="/settings"
             className="flex items-center gap-2 rounded-lg px-4 py-2 transition-colors"
-            style={{ fontSize: 11, color: '#4a5568', border: '1px solid #1e2330', background: '#0d1017' }}
+            style={{ fontSize: 11, color: 'var(--sl-text-lo)', border: '1px solid var(--sl-border)', background: 'var(--sl-surface)' }}
           >
             <IconSettings size={13} stroke={1.8} />
             Open Settings

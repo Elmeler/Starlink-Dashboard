@@ -11,30 +11,30 @@ function StatRow({ label, children }) {
   return (
     <div
       className="flex justify-between items-center py-1.5"
-      style={{ borderBottom: '0.5px solid #1a2030' }}
+      style={{ borderBottom: `0.5px solid var(--sl-border-subtle)` }}
     >
-      <span style={{ fontSize: 10, color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+      <span style={{ fontSize: 10, color: 'var(--sl-text-lo)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
         {label}
       </span>
-      <span style={{ fontSize: 11, color: '#cbd5e1' }}>{children}</span>
+      <span style={{ fontSize: 11, color: 'var(--sl-text-med)' }}>{children}</span>
     </div>
   )
 }
 
 function StateBadge({ state }) {
   const colors = {
-    CONNECTED:        { bg: '#0a3320', color: '#22c55e' },
-    OBSTRUCTED:       { bg: '#3d2800', color: '#f59e0b' },
-    THERMAL_SHUTDOWN: { bg: '#3b0c0c', color: '#ef4444' },
-    SEARCHING:        { bg: '#0a1a3a', color: '#4d9fff' },
-    BOOTING:          { bg: '#1e2330', color: '#4a5568' },
-    STOWED:           { bg: '#1e2330', color: '#4a5568' },
+    CONNECTED:        { bg: 'var(--sl-success-dim)', color: 'var(--sl-success)' },
+    OBSTRUCTED:       { bg: 'var(--sl-warning-dim)', color: 'var(--sl-warning)' },
+    THERMAL_SHUTDOWN: { bg: 'var(--sl-danger-dim)',  color: 'var(--sl-danger)'  },
+    SEARCHING:        { bg: 'var(--sl-accent-bg)',   color: 'var(--sl-accent)'  },
+    BOOTING:          { bg: 'var(--sl-border)',      color: 'var(--sl-text-lo)' },
+    STOWED:           { bg: 'var(--sl-border)',      color: 'var(--sl-text-lo)' },
   }
-  const sty = colors[state] ?? { bg: '#1e2330', color: '#4a5568' }
+  const sty = colors[state] ?? { bg: 'var(--sl-border)', color: 'var(--sl-text-lo)' }
   return (
     <span
       className="inline-block rounded px-1.5 py-0.5 font-medium"
-      style={{ fontSize: 10, ...sty }}
+      style={{ fontSize: 10, background: sty.bg, color: sty.color }}
     >
       {state ?? '—'}
     </span>
@@ -47,7 +47,6 @@ export default function Diagnostics() {
   const { data, history } = useLive()
   const { data: diag }    = useApi('/api/diagnostics', 60_000)
 
-  // Build pointing history from live WS snapshots (last 90 readings = 90 s)
   const pointingHistory = useMemo(() =>
     history
       .slice(-90)
@@ -58,7 +57,6 @@ export default function Diagnostics() {
 
   const d = data ?? {}
 
-  // Use diag endpoint for temps (it fetches fresh from status) or fall back to WS snapshot
   const dishTemp  = diag?.dish_temp_c  ?? d.dish_temp_c
   const boardTemp = diag?.board_temp_c ?? d.board_temp_c
   const azimuth   = diag?.pointing?.azimuth_deg   ?? d.direction_azimuth
@@ -70,7 +68,7 @@ export default function Diagnostics() {
       {/* ══ LEFT PANEL — large obstruction map ══════════════════════════════ */}
       <div
         className="rounded-lg p-4 flex flex-col gap-3 shrink-0"
-        style={{ width: 300, background: '#0d1017', border: '1px solid #1e2330' }}
+        style={{ width: 300, background: 'var(--sl-surface)', border: '1px solid var(--sl-border)' }}
       >
         <p className="label">Obstruction Map</p>
 
@@ -88,7 +86,7 @@ export default function Diagnostics() {
         <div>
           <StatRow label="Obstructed">
             {diag?.is_obstructed != null ? (
-              <span style={{ color: diag.is_obstructed ? '#f59e0b' : '#22c55e' }}>
+              <span style={{ color: diag.is_obstructed ? 'var(--sl-warning)' : 'var(--sl-success)' }}>
                 {diag.is_obstructed ? 'Yes' : 'No'}
               </span>
             ) : '—'}
@@ -107,9 +105,8 @@ export default function Diagnostics() {
         {/* Row 1: satellite tracker + temperature gauges */}
         <div
           className="rounded-lg p-4 flex flex-wrap gap-6 items-start justify-around"
-          style={{ background: '#0d1017', border: '1px solid #1e2330' }}
+          style={{ background: 'var(--sl-surface)', border: '1px solid var(--sl-border)' }}
         >
-          {/* Satellite / pointing tracker */}
           <div className="flex flex-col items-center gap-1">
             <p className="label mb-2">Satellite Tracker</p>
             <SatelliteTracker
@@ -120,7 +117,6 @@ export default function Diagnostics() {
             />
           </div>
 
-          {/* Temperature gauges */}
           <div className="flex flex-col gap-1">
             <p className="label mb-2">Temperatures</p>
             <div className="flex gap-4">
@@ -133,37 +129,36 @@ export default function Diagnostics() {
         {/* Row 2: signal quality + connection status */}
         <div
           className="rounded-lg p-4"
-          style={{ background: '#0d1017', border: '1px solid #1e2330' }}
+          style={{ background: 'var(--sl-surface)', border: '1px solid var(--sl-border)' }}
         >
           <p className="label mb-3">Signal &amp; Status</p>
 
           {/* SNR indicator — segmented bar */}
           <div className="mb-3">
             <div className="flex justify-between mb-1">
-              <span style={{ fontSize: 10, color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              <span style={{ fontSize: 10, color: 'var(--sl-text-lo)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 SNR above noise floor
               </span>
               <span style={{
                 fontSize: 10, fontWeight: 500,
-                color: d.snr_above_floor === true  ? '#22c55e'
-                     : d.snr_above_floor === false ? '#ef4444'
-                     : '#2a3344',
+                color: d.snr_above_floor === true  ? 'var(--sl-success)'
+                     : d.snr_above_floor === false ? 'var(--sl-danger)'
+                     : 'var(--sl-text-dim)',
               }}>
                 {d.snr_above_floor === true  ? 'Yes'
                 : d.snr_above_floor === false ? 'No'
                 : '—'}
               </span>
             </div>
-            {/* Visual bar */}
             <div
               className="rounded-full overflow-hidden"
-              style={{ height: 6, background: '#1e2330' }}
+              style={{ height: 6, background: 'var(--sl-border)' }}
             >
               <div
                 className="h-full rounded-full transition-all duration-500"
                 style={{
                   width: d.snr_above_floor ? '100%' : d.snr_above_floor === false ? '15%' : '0%',
-                  background: d.snr_above_floor ? '#22c55e' : '#ef4444',
+                  background: d.snr_above_floor ? 'var(--sl-success)' : 'var(--sl-danger)',
                 }}
               />
             </div>
@@ -175,7 +170,7 @@ export default function Diagnostics() {
             </StatRow>
             <StatRow label="GPS">
               {d.gps_ready != null ? (
-                <span style={{ color: d.gps_ready ? '#22c55e' : '#f59e0b' }}>
+                <span style={{ color: d.gps_ready ? 'var(--sl-success)' : 'var(--sl-warning)' }}>
                   {d.gps_ready ? `Ready — ${d.gps_sats ?? '?'} sats` : 'Not ready'}
                 </span>
               ) : '—'}
@@ -197,12 +192,12 @@ export default function Diagnostics() {
               })()}
             </StatRow>
             <StatRow label="Software">
-              <span className="mono" style={{ fontSize: 10, color: '#4a5568' }}>
+              <span className="mono" style={{ fontSize: 10, color: 'var(--sl-text-lo)' }}>
                 {d.software_version ?? '—'}
               </span>
             </StatRow>
             <StatRow label="Hardware">
-              <span className="mono" style={{ fontSize: 10, color: '#4a5568' }}>
+              <span className="mono" style={{ fontSize: 10, color: 'var(--sl-text-lo)' }}>
                 {d.hardware_version ?? '—'}
               </span>
             </StatRow>

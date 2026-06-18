@@ -6,9 +6,9 @@ import { useContext } from 'react'
 import { LiveContext } from '../App'
 
 const ZONES = [
-  { from: 0,    to: 0.60, dim: '#0d3320', bright: '#22c55e' },
-  { from: 0.60, to: 0.80, dim: '#3d2800', bright: '#f59e0b' },
-  { from: 0.80, to: 1.00, dim: '#3b0c0c', bright: '#ef4444' },
+  { from: 0,    to: 0.60, dim: 'var(--sl-success-dim)', bright: '#22c55e' },
+  { from: 0.60, to: 0.80, dim: 'var(--sl-warning-dim)', bright: '#f59e0b' },
+  { from: 0.80, to: 1.00, dim: 'var(--sl-danger-dim)',  bright: '#ef4444' },
 ]
 
 function valueColor(frac) {
@@ -17,24 +17,15 @@ function valueColor(frac) {
   return '#22c55e'
 }
 
-/**
- * Point on the semicircle at fraction f (0=left, 0.5=top, 1=right).
- * cx, cy is the centre of the full circle; r is the radius.
- */
 function pt(cx, cy, r, f) {
-  const a = Math.PI * (1 - f)           // π at f=0, 0 at f=1
-  return [cx + r * Math.cos(a), cy - r * Math.sin(a)]  // SVG y is inverted
+  const a = Math.PI * (1 - f)
+  return [cx + r * Math.cos(a), cy - r * Math.sin(a)]
 }
 
-/**
- * SVG arc path from fraction f1 to f2 along the top semicircle.
- * Always counter-clockwise (sweep=0).
- */
 function arcPath(cx, cy, r, f1, f2) {
   if (Math.abs(f2 - f1) < 0.001) return ''
   const [x1, y1] = pt(cx, cy, r, f1)
   const [x2, y2] = pt(cx, cy, r, f2)
-  // Arc spans (f2-f1)*180°; large-arc flag needed only if >180° (never here)
   return `M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 0 0 ${x2.toFixed(2)} ${y2.toFixed(2)}`
 }
 
@@ -42,7 +33,7 @@ function cToF(c) { return c != null ? Math.round(c * 9 / 5 + 32) : null }
 
 export default function TempGauge({
   label    = 'Temp',
-  value    = null,     // always °C from backend
+  value    = null,
   maxTemp  = 100,
   size     = 130,
 }) {
@@ -50,16 +41,12 @@ export default function TempGauge({
   const tempUnit = ctx?.settings?.tempUnit ?? 'C'
   const display  = tempUnit === 'F' ? cToF(value) : (value != null ? Math.round(value) : null)
   const unit     = `°${tempUnit}`
-  // Keep colour zones always in °C scale regardless of display unit
 
-  // SVG viewport: 0 0 120 76
-  // Arc centre at (60, 68), radius 52
   const VW = 120, VH = 76
   const CX = 60,  CY = 68, R = 52
-  const SW = 9                             // stroke width
+  const SW = 9
   const frac = value != null ? Math.min(Math.max(value / maxTemp, 0), 1) : 0
 
-  // Zone boundary labels
   const zone60 = maxTemp * 0.6
   const zone80 = maxTemp * 0.8
 
@@ -104,7 +91,7 @@ export default function TempGauge({
               key={f}
               x1={xi.toFixed(1)} y1={yi.toFixed(1)}
               x2={xo.toFixed(1)} y2={yo.toFixed(1)}
-              stroke="#1e2330"
+              stroke="var(--sl-border)"
               strokeWidth={1}
             />
           )
@@ -126,7 +113,7 @@ export default function TempGauge({
               textAnchor="middle"
               dominantBaseline="middle"
               fontSize={7}
-              fill="#2a3344"
+              fill="var(--sl-text-dim)"
               fontFamily="Space Grotesk, sans-serif"
             >
               {txt}
@@ -141,7 +128,7 @@ export default function TempGauge({
           dominantBaseline="middle"
           fontSize={22}
           fontWeight={500}
-          fill={value != null ? valueColor(frac) : '#2a3344'}
+          fill={value != null ? valueColor(frac) : 'var(--sl-text-dim)'}
           fontFamily="Space Grotesk, sans-serif"
         >
           {display ?? '—'}
@@ -151,14 +138,14 @@ export default function TempGauge({
           textAnchor="middle"
           dominantBaseline="middle"
           fontSize={9}
-          fill="#4a5568"
+          fill="var(--sl-text-lo)"
           fontFamily="Space Grotesk, sans-serif"
         >
           {unit}
         </text>
       </svg>
 
-      <span style={{ fontSize: 10, color: '#4a5568', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+      <span style={{ fontSize: 10, color: 'var(--sl-text-lo)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
         {label}
       </span>
     </div>

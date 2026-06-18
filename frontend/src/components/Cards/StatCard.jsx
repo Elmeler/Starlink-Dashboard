@@ -8,22 +8,22 @@
  *   sublabel   string   — small colored status text
  *   color      string   — CSS color for sublabel + value accent
  */
-export default function StatCard({ label, value, unit, sublabel, color = '#22c55e' }) {
+export default function StatCard({ label, value, unit, sublabel, color = 'var(--sl-success)' }) {
   const display = value === null || value === undefined ? '—' : value
 
   return (
     <div
       className="rounded-lg flex flex-col gap-1"
       style={{
-        background: '#0d1017',
-        border: '1px solid #1e2330',
+        background: 'var(--sl-surface)',
+        border: '1px solid var(--sl-border)',
         padding: '10px 12px',
         minWidth: 0,
       }}
     >
       <span
         className="uppercase tracking-widest"
-        style={{ fontSize: 10, color: '#4a5568', letterSpacing: '0.08em' }}
+        style={{ fontSize: 10, color: 'var(--sl-text-lo)', letterSpacing: '0.08em' }}
       >
         {label}
       </span>
@@ -31,12 +31,12 @@ export default function StatCard({ label, value, unit, sublabel, color = '#22c55
       <div className="flex items-baseline gap-1.5">
         <span
           className="font-medium tabular-nums"
-          style={{ fontSize: 20, color: '#e2e8f0', lineHeight: 1 }}
+          style={{ fontSize: 20, color: 'var(--sl-text-hi)', lineHeight: 1 }}
         >
           {display}
         </span>
         {unit && (
-          <span style={{ fontSize: 11, color: '#4a5568' }}>{unit}</span>
+          <span style={{ fontSize: 11, color: 'var(--sl-text-lo)' }}>{unit}</span>
         )}
       </div>
 

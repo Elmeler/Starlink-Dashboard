@@ -4,6 +4,7 @@ export const DEFAULTS = {
   dishAddress:   '192.168.100.1:9200',
   pollIntervalS: 5,       // seconds between REST diagnostic/device polls
   tempUnit:      'C',     // 'C' | 'F'
+  theme:         'dark',  // 'dark' | 'light'
 }
 
 function load() {

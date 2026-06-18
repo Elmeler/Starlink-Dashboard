@@ -5,9 +5,64 @@
 @layer base {
   *, *::before, *::after { box-sizing: border-box; }
   html, body, #root { height: 100%; margin: 0; padding: 0; }
+
+  /* ── Dark theme (default) ── */
+  :root {
+    --sl-bg:             #0a0c10;
+    --sl-surface:        #0d1017;
+    --sl-surface-alt:    #111520;
+    --sl-border:         #1e2330;
+    --sl-border-subtle:  #1a2030;
+    --sl-text-hi:        #e2e8f0;
+    --sl-text-med:       #cbd5e1;
+    --sl-text-lo:        #4a5568;
+    --sl-text-dim:       #2a3344;
+    --sl-accent:         #4d9fff;
+    --sl-accent-bg:      #0a2d6e;
+    --sl-accent-border:  #1a4a9e;
+    --sl-success:        #22c55e;
+    --sl-success-dim:    #0d3320;
+    --sl-warning:        #f59e0b;
+    --sl-warning-dim:    #3d2800;
+    --sl-warning-panel:  #2d1200;
+    --sl-danger:         #ef4444;
+    --sl-danger-dim:     #3b0c0c;
+    --sl-alert-bg:       #7c2d12;
+    --sl-alert-border:   #c2410c;
+    --sl-alert-icon:     #fb923c;
+    --sl-alert-text:     #fed7aa;
+  }
+
+  /* ── Light theme overrides ── */
+  :root.theme-light {
+    --sl-bg:             #f0f4f8;
+    --sl-surface:        #ffffff;
+    --sl-surface-alt:    #f1f5f9;
+    --sl-border:         #e2e8f0;
+    --sl-border-subtle:  #edf2f7;
+    --sl-text-hi:        #0f172a;
+    --sl-text-med:       #334155;
+    --sl-text-lo:        #64748b;
+    --sl-text-dim:       #94a3b8;
+    --sl-accent:         #2563eb;
+    --sl-accent-bg:      #dbeafe;
+    --sl-accent-border:  #93c5fd;
+    --sl-success:        #16a34a;
+    --sl-success-dim:    #dcfce7;
+    --sl-warning:        #d97706;
+    --sl-warning-dim:    #fef3c7;
+    --sl-warning-panel:  #fffbeb;
+    --sl-danger:         #dc2626;
+    --sl-danger-dim:     #fee2e2;
+    --sl-alert-bg:       #fff7ed;
+    --sl-alert-border:   #fb923c;
+    --sl-alert-icon:     #ea580c;
+    --sl-alert-text:     #9a3412;
+  }
+
   body {
-    background-color: #0a0c10;
-    color: #e2e8f0;
+    background-color: var(--sl-bg);
+    color: var(--sl-text-hi);
     font-family: 'Space Grotesk', Inter, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
@@ -18,7 +73,7 @@
     font-size: 10px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: #4a5568;
+    color: var(--sl-text-lo);
   }
   .mono { font-family: 'JetBrains Mono', monospace; }
 }

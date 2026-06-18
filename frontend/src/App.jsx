@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
-import { createContext, useContext } from 'react'
+import { createContext, useContext, useLayoutEffect } from 'react'
 import { useLiveData }   from './hooks/useLiveData'
 import { useAlertLog }   from './hooks/useAlertLog'
 import { useSettings }   from './hooks/useSettings'
@@ -49,9 +49,13 @@ function Shell() {
 
   const ctx = { ...live, alertLog, clearLog, settings, updateSetting }
 
+  useLayoutEffect(() => {
+    document.documentElement.classList.toggle('theme-light', settings.theme === 'light')
+  }, [settings.theme])
+
   return (
     <LiveContext.Provider value={ctx}>
-      <div className="flex flex-col" style={{ height: '100dvh', background: '#0a0c10' }}>
+      <div className="flex flex-col" style={{ height: '100dvh', background: 'var(--sl-bg)' }}>
         <Header
           wsConnected={live.connected}
           dishConnected={live.dishConnected}

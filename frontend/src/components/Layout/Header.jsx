@@ -2,8 +2,8 @@ import { NavLink } from 'react-router-dom'
 import { IconSettings } from '@tabler/icons-react'
 
 export default function Header({ wsConnected, dishConnected, dishAddress }) {
-  const dotColor  = !wsConnected ? '#4a5568' : dishConnected ? '#22c55e' : '#ef4444'
-  const dotGlow   = !wsConnected ? 'none'    : dishConnected ? '0 0 6px #22c55e' : '0 0 6px #ef4444'
+  const dotColor  = !wsConnected ? 'var(--sl-text-lo)' : dishConnected ? 'var(--sl-success)' : 'var(--sl-danger)'
+  const dotGlow   = !wsConnected ? 'none'    : dishConnected ? '0 0 6px var(--sl-success)' : '0 0 6px var(--sl-danger)'
   const label     = !wsConnected ? 'Disconnected' : dishConnected ? 'Connected — dish online' : 'Dish unreachable'
 
   return (
@@ -11,8 +11,8 @@ export default function Header({ wsConnected, dishConnected, dishAddress }) {
       className="flex items-center justify-between px-4 shrink-0"
       style={{
         height: 44,
-        background: '#0d1017',
-        borderBottom: '1px solid #1e2330',
+        background: 'var(--sl-surface)',
+        borderBottom: '1px solid var(--sl-border)',
       }}
     >
       {/* Wordmark */}
@@ -21,7 +21,7 @@ export default function Header({ wsConnected, dishConnected, dishAddress }) {
         style={{ fontSize: 13, letterSpacing: 3 }}
       >
         <span className="text-textprimary">STAR</span>
-        <span style={{ color: '#4d9fff' }}>LINK</span>
+        <span style={{ color: 'var(--sl-accent)' }}>LINK</span>
         <span className="text-textprimary"> MONITOR</span>
       </span>
 
@@ -49,7 +49,7 @@ export default function Header({ wsConnected, dishConnected, dishAddress }) {
         {dishAddress && (
           <span
             className="mono"
-            style={{ fontSize: 11, color: '#4a5568' }}
+            style={{ fontSize: 11, color: 'var(--sl-text-lo)' }}
           >
             {dishAddress}
           </span>

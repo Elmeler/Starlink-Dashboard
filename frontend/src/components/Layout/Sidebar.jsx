@@ -19,7 +19,7 @@ export default function Sidebar() {
   return (
     <nav
       className="flex flex-col items-center py-3 gap-1 shrink-0"
-      style={{ width: 52, background: '#0d1017', borderRight: '1px solid #1e2330' }}
+      style={{ width: 52, background: 'var(--sl-surface)', borderRight: '1px solid var(--sl-border)' }}
     >
       {NAV.map(({ to, icon: Icon, label }) => (
         <NavLink
@@ -33,18 +33,18 @@ export default function Sidebar() {
               'w-9 h-9',
               isActive
                 ? 'text-accent'
-                : 'text-textmuted hover:text-[#8ba4c4]',
+                : 'text-textmuted hover:text-textprimary',
             ].join(' ')
           }
           style={({ isActive }) =>
-            isActive ? { background: '#0a2d6e' } : undefined
+            isActive ? { background: 'var(--sl-accent-bg)' } : undefined
           }
         >
           {({ isActive }) => (
             <Icon
               size={20}
               stroke={1.6}
-              color={isActive ? '#4d9fff' : undefined}
+              color={isActive ? 'var(--sl-accent)' : undefined}
             />
           )}
         </NavLink>

@@ -13,21 +13,21 @@ import WanDetails      from '../components/WanDetails'
 // ── threshold helpers ────────────────────────────────────────────────────────
 
 function latencyColor(ms) {
-  if (ms == null) return '#4a5568'
+  if (ms == null) return 'var(--sl-text-lo)'
   if (ms < 50)   return '#22c55e'
   if (ms < 100)  return '#f59e0b'
   return '#ef4444'
 }
 
 function dropColor(pct) {
-  if (pct == null) return '#4a5568'
+  if (pct == null) return 'var(--sl-text-lo)'
   if (pct < 0.5)  return '#22c55e'
   if (pct < 2)    return '#f59e0b'
   return '#ef4444'
 }
 
 function tempColor(c) {
-  if (c == null) return '#4a5568'
+  if (c == null) return 'var(--sl-text-lo)'
   if (c < 60)   return '#22c55e'
   if (c < 80)   return '#f59e0b'
   return '#ef4444'
@@ -52,7 +52,6 @@ export default function Dashboard() {
   const [dismissed, setDismissed]              = useState(new Set())
   const tempUnit = settings?.tempUnit ?? 'C'
 
-  // Seed charts with backend history, then append live WS points
   const { data: seedResp }  = useApi('/api/history',     0)
   const { data: diagData }  = useApi('/api/diagnostics', 60_000)
   const { data: wanData }   = useApi('/api/wan',         60_000)
@@ -64,7 +63,6 @@ export default function Dashboard() {
     return [...seed, ...newLive].slice(-900)
   }, [seedResp, wsHistory])
 
-  // Remove dismissed keys that are no longer in the active alert list
   useEffect(() => {
     if (!data?.alerts?.length) return
     const activeKeys = new Set(data.alerts.map(a => a.key))
@@ -129,7 +127,7 @@ export default function Dashboard() {
           value={fmtUptime(d.uptime_s)}
           unit=""
           sublabel={d.state ?? ''}
-          color="#4a5568"
+          color="var(--sl-text-lo)"
         />
         <StatCard
           label="Dish temp"
@@ -148,13 +146,13 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 gap-2">
         <div
           className="rounded-lg p-3"
-          style={{ background: '#0d1017', border: '1px solid #1e2330' }}
+          style={{ background: 'var(--sl-surface)', border: '1px solid var(--sl-border)' }}
         >
           <ThroughputChart data={chartData} />
         </div>
         <div
           className="rounded-lg p-3"
-          style={{ background: '#0d1017', border: '1px solid #1e2330' }}
+          style={{ background: 'var(--sl-surface)', border: '1px solid var(--sl-border)' }}
         >
           <LatencyChart data={chartData} />
         </div>
@@ -166,7 +164,7 @@ export default function Dashboard() {
         {/* Obstruction map */}
         <div
           className="rounded-lg p-3 flex flex-col"
-          style={{ background: '#0d1017', border: '1px solid #1e2330' }}
+          style={{ background: 'var(--sl-surface)', border: '1px solid var(--sl-border)' }}
         >
           <p className="label mb-2">Obstruction Map</p>
           <div className="flex-1 flex items-center justify-center">
@@ -188,7 +186,7 @@ export default function Dashboard() {
         {/* WAN details */}
         <div
           className="rounded-lg p-3"
-          style={{ background: '#0d1017', border: '1px solid #1e2330' }}
+          style={{ background: 'var(--sl-surface)', border: '1px solid var(--sl-border)' }}
         >
           <WanDetails data={wanData} />
         </div>
@@ -196,7 +194,7 @@ export default function Dashboard() {
 
       {/* Firmware hint */}
       {d.software_version && (
-        <p className="label text-right" style={{ color: '#2a3344' }}>
+        <p className="label text-right" style={{ color: 'var(--sl-text-dim)' }}>
           fw {d.software_version}
           {d.hardware_version ? ` · hw ${d.hardware_version}` : ''}
         </p>

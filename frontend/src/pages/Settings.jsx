@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { IconPlugConnected, IconPlugConnectedX, IconRefresh, IconRadar } from '@tabler/icons-react'
+import { IconPlugConnected, IconPlugConnectedX, IconRefresh, IconRadar, IconSun, IconMoon } from '@tabler/icons-react'
 import { useLive } from '../App'
 
 // ── sub-components ────────────────────────────────────────────────────────────
@@ -8,7 +8,7 @@ function Card({ title, children }) {
   return (
     <div
       className="rounded-lg p-4 space-y-4"
-      style={{ background: '#0d1017', border: '1px solid #1e2330' }}
+      style={{ background: 'var(--sl-surface)', border: '1px solid var(--sl-border)' }}
     >
       <p className="label">{title}</p>
       {children}
@@ -20,8 +20,8 @@ function FieldRow({ label, hint, children }) {
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-baseline justify-between">
-        <span style={{ fontSize: 12, color: '#e2e8f0' }}>{label}</span>
-        {hint && <span style={{ fontSize: 10, color: '#2a3344' }}>{hint}</span>}
+        <span style={{ fontSize: 12, color: 'var(--sl-text-hi)' }}>{label}</span>
+        {hint && <span style={{ fontSize: 10, color: 'var(--sl-text-dim)' }}>{hint}</span>}
       </div>
       {children}
     </div>
@@ -46,9 +46,8 @@ export default function Settings() {
   const { settings, updateSetting, connected, dishConnected, data } = useLive()
   const wsUrl = `ws://${window.location.host}/ws/live`
 
-  // Local state for the IP field (controlled while editing)
   const [ipDraft,     setIpDraft]     = useState(settings.dishAddress)
-  const [testStatus,  setTestStatus]  = useState(null)   // null | 'testing' | 'ok' | 'fail'
+  const [testStatus,  setTestStatus]  = useState(null)
   const [testMessage, setTestMessage] = useState('')
 
   async function testConnection() {
@@ -74,11 +73,17 @@ export default function Settings() {
     if (ipDraft.trim()) updateSetting('dishAddress', ipDraft.trim())
   }
 
-  const statusColor = {
-    ok:      '#22c55e',
-    fail:    '#ef4444',
-    testing: '#f59e0b',
-  }[testStatus] ?? 'transparent'
+  const statusColor = testStatus === 'ok'
+    ? 'var(--sl-success)'
+    : testStatus === 'fail'
+    ? 'var(--sl-danger)'
+    : 'transparent'
+
+  const statusBg = testStatus === 'ok'
+    ? 'var(--sl-success-dim)'
+    : testStatus === 'fail'
+    ? 'var(--sl-danger-dim)'
+    : 'transparent'
 
   return (
     <div className="space-y-3 max-w-lg">
@@ -99,9 +104,9 @@ export default function Settings() {
               className="flex-1 rounded px-3 py-1.5 mono outline-none"
               style={{
                 fontSize: 12,
-                background: '#111520',
-                border: '1px solid #1e2330',
-                color: '#e2e8f0',
+                background: 'var(--sl-surface-alt)',
+                border: '1px solid var(--sl-border)',
+                color: 'var(--sl-text-hi)',
               }}
               spellCheck={false}
             />
@@ -109,7 +114,7 @@ export default function Settings() {
               onClick={testConnection}
               disabled={testStatus === 'testing'}
               className="flex items-center gap-1.5 rounded px-3 py-1.5 font-medium transition-opacity disabled:opacity-50"
-              style={{ fontSize: 12, background: '#0a2d6e', color: '#4d9fff', border: '1px solid #1a4a9e', whiteSpace: 'nowrap' }}
+              style={{ fontSize: 12, background: 'var(--sl-accent-bg)', color: 'var(--sl-accent)', border: '1px solid var(--sl-accent-border)', whiteSpace: 'nowrap' }}
             >
               {testStatus === 'testing'
                 ? <IconRefresh size={13} stroke={2} className="animate-spin" />
@@ -122,13 +127,13 @@ export default function Settings() {
             <div
               className="flex items-center gap-2 rounded px-3 py-2 mt-1"
               style={{
-                background: testStatus === 'ok' ? '#0a3320' : '#3b0c0c',
+                background: statusBg,
                 border: `1px solid ${statusColor}`,
               }}
             >
               {testStatus === 'ok'
-                ? <IconPlugConnected  size={13} stroke={2} style={{ color: '#22c55e', flexShrink: 0 }} />
-                : <IconPlugConnectedX size={13} stroke={2} style={{ color: '#ef4444', flexShrink: 0 }} />}
+                ? <IconPlugConnected  size={13} stroke={2} style={{ color: 'var(--sl-success)', flexShrink: 0 }} />
+                : <IconPlugConnectedX size={13} stroke={2} style={{ color: 'var(--sl-danger)',  flexShrink: 0 }} />}
               <span style={{ fontSize: 11, color: statusColor }}>{testMessage}</span>
             </div>
           )}
@@ -137,7 +142,7 @@ export default function Settings() {
         {/* Live WS status */}
         <div
           className="rounded-lg p-3 space-y-2"
-          style={{ background: '#0a0c10', border: '1px solid #1e2330' }}
+          style={{ background: 'var(--sl-bg)', border: '1px solid var(--sl-border)' }}
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -145,16 +150,16 @@ export default function Settings() {
                 className="inline-block rounded-full shrink-0"
                 style={{
                   width: 7, height: 7,
-                  background: connected ? '#22c55e' : '#4a5568',
-                  boxShadow: connected ? '0 0 5px #22c55e' : 'none',
+                  background: connected ? 'var(--sl-success)' : 'var(--sl-text-lo)',
+                  boxShadow: connected ? '0 0 5px var(--sl-success)' : 'none',
                 }}
               />
-              <span style={{ fontSize: 11, color: connected ? '#22c55e' : '#4a5568', fontWeight: 500 }}>
+              <span style={{ fontSize: 11, color: connected ? 'var(--sl-success)' : 'var(--sl-text-lo)', fontWeight: 500 }}>
                 WebSocket {connected ? 'connected' : 'disconnected'}
               </span>
             </div>
             {connected && (
-              <span style={{ fontSize: 9, color: '#2a3344', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              <span style={{ fontSize: 9, color: 'var(--sl-text-dim)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                 live · 1 s
               </span>
             )}
@@ -162,41 +167,41 @@ export default function Settings() {
 
           <div className="space-y-1.5">
             <div className="flex justify-between items-baseline gap-2">
-              <span style={{ fontSize: 10, color: '#2a3344', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Endpoint</span>
-              <code className="mono" style={{ fontSize: 10, color: '#4a5568' }}>{wsUrl}</code>
+              <span style={{ fontSize: 10, color: 'var(--sl-text-dim)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Endpoint</span>
+              <code className="mono" style={{ fontSize: 10, color: 'var(--sl-text-lo)' }}>{wsUrl}</code>
             </div>
             <div className="flex justify-between items-baseline gap-2">
-              <span style={{ fontSize: 10, color: '#2a3344', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Dish gRPC</span>
+              <span style={{ fontSize: 10, color: 'var(--sl-text-dim)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Dish gRPC</span>
               <div className="flex items-center gap-1.5">
                 <span
                   className="inline-block rounded-full"
                   style={{
                     width: 5, height: 5,
-                    background: dishConnected ? '#22c55e' : '#ef4444',
-                    boxShadow: dishConnected ? '0 0 4px #22c55e' : 'none',
+                    background: dishConnected ? 'var(--sl-success)' : 'var(--sl-danger)',
+                    boxShadow: dishConnected ? '0 0 4px var(--sl-success)' : 'none',
                   }}
                 />
-                <code className="mono" style={{ fontSize: 10, color: dishConnected ? '#22c55e' : '#ef4444' }}>
+                <code className="mono" style={{ fontSize: 10, color: dishConnected ? 'var(--sl-success)' : 'var(--sl-danger)' }}>
                   {settings.dishAddress}
                 </code>
               </div>
             </div>
             {data?.software_version && (
               <div className="flex justify-between items-baseline gap-2">
-                <span style={{ fontSize: 10, color: '#2a3344', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Firmware</span>
-                <code className="mono" style={{ fontSize: 10, color: '#4a5568' }}>{data.software_version}</code>
+                <span style={{ fontSize: 10, color: 'var(--sl-text-dim)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Firmware</span>
+                <code className="mono" style={{ fontSize: 10, color: 'var(--sl-text-lo)' }}>{data.software_version}</code>
               </div>
             )}
             {data?.uptime_s != null && (
               <div className="flex justify-between items-baseline gap-2">
-                <span style={{ fontSize: 10, color: '#2a3344', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Dish uptime</span>
-                <span style={{ fontSize: 10, color: '#4a5568' }}>{fmtUptime(data.uptime_s)}</span>
+                <span style={{ fontSize: 10, color: 'var(--sl-text-dim)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Dish uptime</span>
+                <span style={{ fontSize: 10, color: 'var(--sl-text-lo)' }}>{fmtUptime(data.uptime_s)}</span>
               </div>
             )}
             {data?.state && (
               <div className="flex justify-between items-baseline gap-2">
-                <span style={{ fontSize: 10, color: '#2a3344', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Dish state</span>
-                <span style={{ fontSize: 10, color: data.state === 'CONNECTED' ? '#22c55e' : '#f59e0b' }}>{data.state}</span>
+                <span style={{ fontSize: 10, color: 'var(--sl-text-dim)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Dish state</span>
+                <span style={{ fontSize: 10, color: data.state === 'CONNECTED' ? 'var(--sl-success)' : 'var(--sl-warning)' }}>{data.state}</span>
               </div>
             )}
           </div>
@@ -214,9 +219,9 @@ export default function Settings() {
                 className="rounded px-4 py-1.5 font-medium transition-colors"
                 style={{
                   fontSize: 12,
-                  background: settings.tempUnit === unit ? '#0a2d6e' : '#111520',
-                  color:      settings.tempUnit === unit ? '#4d9fff' : '#4a5568',
-                  border:     `1px solid ${settings.tempUnit === unit ? '#1a4a9e' : '#1e2330'}`,
+                  background: settings.tempUnit === unit ? 'var(--sl-accent-bg)'     : 'var(--sl-surface-alt)',
+                  color:      settings.tempUnit === unit ? 'var(--sl-accent)'         : 'var(--sl-text-lo)',
+                  border:     `1px solid ${settings.tempUnit === unit ? 'var(--sl-accent-border)' : 'var(--sl-border)'}`,
                 }}
               >
                 °{unit}
@@ -225,16 +230,30 @@ export default function Settings() {
           </div>
         </FieldRow>
 
-        <FieldRow label="Theme" hint="Additional themes coming later">
-          <div
-            className="flex items-center gap-2 rounded px-3 py-2"
-            style={{ background: '#111520', border: '1px solid #1e2330', width: 'fit-content' }}
-          >
-            <span
-              className="inline-block rounded-full"
-              style={{ width: 8, height: 8, background: '#4d9fff' }}
-            />
-            <span style={{ fontSize: 12, color: '#4a5568' }}>Dark (Starlink)</span>
+        <FieldRow label="Theme">
+          <div className="flex gap-1">
+            {[
+              { value: 'dark',  label: 'Dark',  Icon: IconMoon },
+              { value: 'light', label: 'Light', Icon: IconSun  },
+            ].map(({ value, label, Icon }) => {
+              const active = settings.theme === value
+              return (
+                <button
+                  key={value}
+                  onClick={() => updateSetting('theme', value)}
+                  className="flex items-center gap-1.5 rounded px-4 py-1.5 font-medium transition-colors"
+                  style={{
+                    fontSize: 12,
+                    background: active ? 'var(--sl-accent-bg)'     : 'var(--sl-surface-alt)',
+                    color:      active ? 'var(--sl-accent)'         : 'var(--sl-text-lo)',
+                    border:     `1px solid ${active ? 'var(--sl-accent-border)' : 'var(--sl-border)'}`,
+                  }}
+                >
+                  <Icon size={13} stroke={2} />
+                  {label}
+                </button>
+              )
+            })}
           </div>
         </FieldRow>
       </Card>
@@ -253,16 +272,16 @@ export default function Settings() {
                 className="rounded px-3 py-1.5 font-medium transition-colors"
                 style={{
                   fontSize: 12,
-                  background: settings.pollIntervalS === s ? '#0a2d6e' : '#111520',
-                  color:      settings.pollIntervalS === s ? '#4d9fff' : '#4a5568',
-                  border:     `1px solid ${settings.pollIntervalS === s ? '#1a4a9e' : '#1e2330'}`,
+                  background: settings.pollIntervalS === s ? 'var(--sl-accent-bg)'     : 'var(--sl-surface-alt)',
+                  color:      settings.pollIntervalS === s ? 'var(--sl-accent)'         : 'var(--sl-text-lo)',
+                  border:     `1px solid ${settings.pollIntervalS === s ? 'var(--sl-accent-border)' : 'var(--sl-border)'}`,
                 }}
               >
                 {s}s
               </button>
             ))}
           </div>
-          <p style={{ fontSize: 10, color: '#2a3344' }}>
+          <p style={{ fontSize: 10, color: 'var(--sl-text-dim)' }}>
             Applies on next page load — currently active: {settings.pollIntervalS}s
           </p>
         </FieldRow>
@@ -279,10 +298,10 @@ export default function Settings() {
             ['Data source',  'Starlink dish gRPC API (192.168.100.1:9200)'],
           ].map(([label, value]) => (
             <div key={label} className="flex justify-between items-baseline gap-4">
-              <span style={{ fontSize: 10, color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <span style={{ fontSize: 10, color: 'var(--sl-text-lo)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 {label}
               </span>
-              <span style={{ fontSize: 11, color: '#4a5568' }}>{value}</span>
+              <span style={{ fontSize: 11, color: 'var(--sl-text-lo)' }}>{value}</span>
             </div>
           ))}
         </div>

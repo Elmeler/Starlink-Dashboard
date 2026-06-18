@@ -18,7 +18,7 @@ export default function Devices() {
           {devices.length > 0 && (
             <span
               className="rounded-full px-2 py-0.5 font-medium"
-              style={{ fontSize: 10, background: '#0a2d6e', color: '#4d9fff' }}
+              style={{ fontSize: 10, background: 'var(--sl-accent-bg)', color: 'var(--sl-accent)' }}
             >
               {devices.length}
             </span>
@@ -32,8 +32,8 @@ export default function Devices() {
         className="rounded-lg p-4 shrink-0"
         style={{
           width: 220,
-          background: '#0d1017',
-          border: '1px solid #1e2330',
+          background: 'var(--sl-surface)',
+          border: '1px solid var(--sl-border)',
           alignSelf: 'flex-start',
         }}
       >

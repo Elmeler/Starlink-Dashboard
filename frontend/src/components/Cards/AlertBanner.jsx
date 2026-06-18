@@ -17,19 +17,19 @@ export default function AlertBanner({ alerts = [], dismissed = new Set(), onDism
           key={alert.key}
           className="flex items-center gap-2 rounded-md px-3 py-2"
           style={{
-            background: '#7c2d12',
-            border: '1px solid #c2410c',
+            background: 'var(--sl-alert-bg)',
+            border: '1px solid var(--sl-alert-border)',
           }}
         >
-          <IconAlertTriangle size={15} stroke={2} style={{ color: '#fb923c', flexShrink: 0 }} />
-          <span className="flex-1 text-sm font-medium" style={{ color: '#fed7aa' }}>
+          <IconAlertTriangle size={15} stroke={2} style={{ color: 'var(--sl-alert-icon)', flexShrink: 0 }} />
+          <span className="flex-1 text-sm font-medium" style={{ color: 'var(--sl-alert-text)' }}>
             {alert.label}
           </span>
           {onDismiss && (
             <button
               onClick={() => onDismiss(alert.key)}
               className="hover:opacity-70 transition-opacity"
-              style={{ color: '#fb923c', lineHeight: 0 }}
+              style={{ color: 'var(--sl-alert-icon)', lineHeight: 0 }}
               aria-label="Dismiss"
             >
               <IconX size={14} stroke={2} />
