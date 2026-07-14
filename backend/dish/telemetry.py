@@ -229,9 +229,12 @@ def _read_temps(raw) -> tuple[Optional[float], Optional[float]]:
                     break
 
             # If descriptor enumeration found temps but none matched known names,
-            # assign by value magnitude (dish is usually the hotter of the two)
+            # assign by value magnitude (dish is usually the hotter of the two).
+            # Prefer non-zero candidates here since an unnamed 0.0 field is more
+            # likely an unrelated/unset field than a genuine reading.
             if dish_temp is None and board_temp is None and temps:
-                vals = sorted(temps.values(), reverse=True)
+                nonzero = sorted((v for v in temps.values() if v != 0), reverse=True)
+                vals = nonzero or sorted(temps.values(), reverse=True)
                 dish_temp  = vals[0]
                 if len(vals) > 1:
                     board_temp = vals[1]
@@ -250,8 +253,9 @@ def _read_temps(raw) -> tuple[Optional[float], Optional[float]]:
 def _safe_temp(value) -> Optional[float]:
     try:
         v = float(value)
-        # Reject 0.0 (protobuf unset default), NaN, and physically impossible values
-        return round(v, 1) if -100 < v < 200 and v != 0 else None
+        # Reject NaN and physically impossible values; 0.0 is a valid reading
+        # (e.g. a dish/board at freezing temperature) and is not filtered here.
+        return round(v, 1) if -100 < v < 200 else None
     except (TypeError, ValueError):
         return None
 

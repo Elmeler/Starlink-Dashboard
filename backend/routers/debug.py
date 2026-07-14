@@ -54,12 +54,7 @@ def _walk(msg, depth=0) -> dict:
 async def debug_gnss():
     """Raw get_gnss_measurement response — per-satellite data if available."""
     try:
-        raw = await asyncio.get_event_loop().run_in_executor(
-            None,
-            lambda: starlink_grpc.get_status(context=telemetry.get_context()),
-        )
         # get_gnss_measurement uses the same channel but a different request
-        import grpc as _grpc
         def _fetch():
             def grpc_call(channel):
                 if starlink_grpc.imports_pending:

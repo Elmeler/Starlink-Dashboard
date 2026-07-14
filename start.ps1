@@ -204,8 +204,14 @@ if (-not $Prod -and $NPM) {
 # ── production: single foreground process ─────────────────────────────────────
 if ($Prod) {
     Write-Host ''
+    Bold '===================================================================='
     Green 'Starlink Monitor is running'
-    Green "  Dashboard : http://localhost:$BACKEND_PORT"
+    Write-Host ''
+    Green   '  -> Web UI (open this in your browser):'
+    Bold    "       http://localhost:$BACKEND_PORT"
+    Write-Host ''
+    Yellow  '     API docs are disabled in production mode.'
+    Bold '===================================================================='
     Write-Host ''
     Yellow '  Press Ctrl+C to stop.'
     Write-Host ''
@@ -227,21 +233,32 @@ $backendProc = Start-Process -FilePath 'cmd.exe' `
 # Give uvicorn a moment to bind before Vite's proxy starts
 Start-Sleep -Seconds 2
 
-Yellow "-> Starting Vite dev server on http://localhost:$FRONTEND_PORT ..."
+Yellow "-> Starting Vite dev server ..."
 Push-Location $FRONTEND_DIR
 & $NPM ci -q
 
 Write-Host ''
+Bold '===================================================================='
 Green 'Starlink Monitor is running'
-Green "  Dashboard : http://localhost:$FRONTEND_PORT"
-Green "  API docs  : http://localhost:$BACKEND_PORT/docs"
+Write-Host ''
+Green   '  -> Web UI (open this in your browser):'
+Bold    "       http://localhost:$FRONTEND_PORT"
+Write-Host ''
+Yellow  '     Backend API (used internally by the dashboard; only needed'
+Yellow  '     for development/debugging - Swagger docs):'
+Yellow  "       http://localhost:$BACKEND_PORT/docs"
+Bold '===================================================================='
 Write-Host ''
 Yellow '  Backend is in the other console window (titled "Starlink Monitor - Backend").'
 Yellow '  Press Ctrl+C here to stop everything.'
 Write-Host ''
 
 try {
-    & $NPM run dev -- --port $FRONTEND_PORT
+    # --logLevel warn / --clearScreen false: suppress Vite's own "Local:/Network:"
+    # ready banner so it can't print a second, differently-formatted port after
+    # the summary above -- that summary is the one source of truth for which
+    # URL to open.
+    & $NPM run dev -- --port $FRONTEND_PORT --clearScreen false --logLevel warn
 } finally {
     # taskkill /T kills cmd.exe AND its uvicorn child in one shot
     if ($backendProc -and -not $backendProc.HasExited) {

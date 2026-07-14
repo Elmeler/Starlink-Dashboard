@@ -1,7 +1,8 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState } from 'react'
 import { IconAlertTriangle, IconCircleCheck, IconTrash, IconX, IconRefresh, IconChevronRight } from '@tabler/icons-react'
 import { useLive } from '../App'
 import { ALERT_META } from '../utils/alertMeta'
+import { useRebootDish } from '../hooks/useRebootDish'
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -31,21 +32,9 @@ function fmtDuration(startMs, endMs) {
 // ── active alert card ─────────────────────────────────────────────────────────
 
 function ActiveCard({ alert, onDismiss }) {
-  const meta            = ALERT_META[alert.key]
-  const [busy, setBusy] = useState(false)
-  const [res,  setRes]  = useState(null)
-
-  const reboot = useCallback(async () => {
-    setBusy(true); setRes(null)
-    try {
-      const r = await fetch('/api/control/reboot', { method: 'POST' })
-      if (!r.ok) throw new Error()
-      setRes('ok')
-    } catch {
-      setRes('err')
-      setTimeout(() => setRes(null), 4000)
-    } finally { setBusy(false) }
-  }, [])
+  const meta = ALERT_META[alert.key]
+  const { state: res, reboot } = useRebootDish()
+  const busy = res === 'busy'
 
   return (
     <div

@@ -79,9 +79,10 @@ def _parse_client(client) -> dict:
 
 
 def _safe_float(value) -> float | None:
+    if value is None:
+        return None
     try:
-        v = float(value)
-        return round(v, 2) if v != 0.0 else None
+        return round(float(value), 2)
     except (TypeError, ValueError):
         return None
 
@@ -104,7 +105,7 @@ def _map_band(iface_name: str, iface_enum_name: str = "") -> str:
     # iface_name (e.g. "ra0", "rax0") is populated for Wi-Fi clients
     n = (iface_name or "").lower()
     if n:
-        if "eth" in n or "lan" in n:
+        if "eth" in n or n.startswith("lan"):
             return "wired"
         if "rax" in n or "5g" in n:   # rax0 = 5 GHz radio
             return "5GHz"

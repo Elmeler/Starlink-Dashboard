@@ -1,10 +1,13 @@
 import { useState, useRef, useCallback } from 'react'
 import { IconAlertTriangle, IconX, IconRefresh, IconChevronRight } from '@tabler/icons-react'
 import { ALERT_META } from '../../utils/alertMeta'
+import { useRebootDish } from '../../hooks/useRebootDish'
 
 // ── hover card ────────────────────────────────────────────────────────────────
 
-function HoverCard({ alert, meta, onReboot, rebootState }) {
+function HoverCard({ alert, meta }) {
+  const { state: rebootState, reboot } = useRebootDish()
+
   return (
     <div
       className="absolute z-50 rounded-lg p-3 space-y-2.5"
@@ -53,7 +56,7 @@ function HoverCard({ alert, meta, onReboot, rebootState }) {
       {meta?.canReboot && (
         <div className="pt-1" style={{ borderTop: '1px solid #1e2330' }}>
           <button
-            onClick={onReboot}
+            onClick={reboot}
             disabled={rebootState === 'busy'}
             className="flex items-center gap-1.5 rounded px-2.5 py-1 font-medium transition-opacity disabled:opacity-50"
             style={{ fontSize: 11, background: '#3b0c0c', color: '#fb923c', border: '1px solid #7c2d12' }}
@@ -75,7 +78,6 @@ function HoverCard({ alert, meta, onReboot, rebootState }) {
 export default function AlertBanner({ alerts = [], dismissed = new Set(), onDismiss }) {
   const visible = alerts.filter(a => !dismissed.has(a.key))
   const [hoveredKey,   setHoveredKey]   = useState(null)
-  const [rebootStates, setRebootStates] = useState({})  // key → 'busy'|'ok'|'err'
   const leaveTimer = useRef(null)
 
   const handleMouseEnter = useCallback((key) => {
@@ -85,18 +87,6 @@ export default function AlertBanner({ alerts = [], dismissed = new Set(), onDism
 
   const handleMouseLeave = useCallback(() => {
     leaveTimer.current = setTimeout(() => setHoveredKey(null), 200)
-  }, [])
-
-  const reboot = useCallback(async (key) => {
-    setRebootStates(s => ({ ...s, [key]: 'busy' }))
-    try {
-      const r = await fetch('/api/control/reboot', { method: 'POST' })
-      if (!r.ok) throw new Error()
-      setRebootStates(s => ({ ...s, [key]: 'ok' }))
-    } catch {
-      setRebootStates(s => ({ ...s, [key]: 'err' }))
-      setTimeout(() => setRebootStates(s => ({ ...s, [key]: null })), 4000)
-    }
   }, [])
 
   if (!visible.length) return null
@@ -142,12 +132,7 @@ export default function AlertBanner({ alerts = [], dismissed = new Set(), onDism
 
             {/* Hover card */}
             {isHovered && meta && (
-              <HoverCard
-                alert={alert}
-                meta={meta}
-                onReboot={() => reboot(alert.key)}
-                rebootState={rebootStates[alert.key]}
-              />
+              <HoverCard alert={alert} meta={meta} />
             )}
           </div>
         )

@@ -171,25 +171,53 @@ BACKEND_PID=$!
 # ── launch Vite dev server ─────────────────────────────────────────────────────
 FRONTEND_PID=""
 if [[ "$PROD" -eq 0 && -n "$NPM" ]]; then
-  yellow "-> Starting Vite dev server on http://localhost:${FRONTEND_PORT} …"
+  yellow "-> Starting Vite dev server …"
   cd "$SCRIPT_DIR/frontend"
   "$NPM" ci -q
-  "$NPM" run dev -- --port "$FRONTEND_PORT" &
+  # --logLevel warn / --clearScreen false: suppress Vite's own "Local:/Network:"
+  # ready banner so it can't print a second, differently-formatted port after
+  # our summary below — the summary at the end of this script is the one
+  # source of truth for which URL to open.
+  "$NPM" run dev -- --port "$FRONTEND_PORT" --clearScreen false --logLevel warn &
   FRONTEND_PID=$!
   cd "$SCRIPT_DIR"
 fi
 
-# ── ready ──────────────────────────────────────────────────────────────────────
-sleep 2
+# ── wait for services to actually bind before printing the summary ───────────
+wait_for_port() {
+  local port="$1" tries="${2:-40}"
+  for ((i = 0; i < tries; i++)); do
+    if (exec 3<>"/dev/tcp/127.0.0.1/$port") 2>/dev/null; then
+      exec 3<&- 3>&-
+      return 0
+    fi
+    sleep 0.25
+  done
+  return 1
+}
+
+wait_for_port "$BACKEND_PORT" || true
+[[ -n "$FRONTEND_PID" ]] && { wait_for_port "$FRONTEND_PORT" || true; }
+
+# ── ready — this is the single, authoritative summary; keep it last ──────────
 echo ""
-green "Starlink Monitor is running"
+bold "════════════════════════════════════════════════════════════"
+green "  Starlink Monitor is running"
+echo ""
 if [[ "$PROD" -eq 1 ]]; then
-  green "  Dashboard : http://localhost:${BACKEND_PORT}"
-  green "  API docs  : disabled in production"
+  green  "  ➜  Web UI (open this in your browser):"
+  bold   "       http://localhost:${BACKEND_PORT}"
+  echo ""
+  yellow "     API docs are disabled in production mode."
 else
-  green "  Dashboard : http://localhost:${FRONTEND_PORT}"
-  green "  API       : http://localhost:${BACKEND_PORT}/docs"
+  green  "  ➜  Web UI (open this in your browser):"
+  bold   "       http://localhost:${FRONTEND_PORT}"
+  echo ""
+  yellow "     Backend API (used internally by the dashboard; only needed"
+  yellow "     for development/debugging — Swagger docs):"
+  yellow "       http://localhost:${BACKEND_PORT}/docs"
 fi
+bold "════════════════════════════════════════════════════════════"
 echo ""
 yellow "  Press Ctrl+C to stop all processes"
 echo ""

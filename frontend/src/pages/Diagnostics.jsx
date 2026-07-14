@@ -337,8 +337,8 @@ export default function Diagnostics() {
           <div className="flex flex-col gap-1">
             <p className="label mb-2">Temperatures</p>
             <div className="flex gap-4">
-              <TempGauge label="Dish"  value={dishTemp}  size={120} unavailable={dishTemp  == null && boardTemp == null} />
-              <TempGauge label="Board" value={boardTemp} size={120} unavailable={dishTemp  == null && boardTemp == null} />
+              <TempGauge label="Dish"  value={dishTemp}  size={120} unavailable={dishTemp  == null} />
+              <TempGauge label="Board" value={boardTemp} size={120} unavailable={boardTemp == null} />
             </div>
             {dishTemp == null && boardTemp == null && (
               <p style={{ fontSize: 10, color: '#2a3344', marginTop: 4 }}>

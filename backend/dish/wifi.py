@@ -30,16 +30,24 @@ def get_wan_details(router_address: str = ROUTER_ADDRESS) -> dict:
             Request    = grclient.message_class("SpaceX.API.Device.Request")
             stub       = DeviceStub(channel)
 
-            ifaces_resp = stub.Handle(Request(get_network_interfaces={}), timeout=5)
-            ifaces = list(
-                getattr(getattr(ifaces_resp, "get_network_interfaces", None),
-                        "network_interfaces", []) or []
-            )
+            ifaces: list = []
+            try:
+                ifaces_resp = stub.Handle(Request(get_network_interfaces={}), timeout=5)
+                ifaces = list(
+                    getattr(getattr(ifaces_resp, "get_network_interfaces", None),
+                            "network_interfaces", []) or []
+                )
+            except Exception as exc:
+                logger.debug("get_network_interfaces unavailable: %s", exc)
 
-            cfg_resp  = stub.Handle(Request(wifi_get_config={}), timeout=5)
-            wifi_cfg  = getattr(
-                getattr(cfg_resp, "wifi_get_config", None), "wifi_config", None
-            )
+            wifi_cfg = None
+            try:
+                cfg_resp = stub.Handle(Request(wifi_get_config={}), timeout=5)
+                wifi_cfg = getattr(
+                    getattr(cfg_resp, "wifi_get_config", None), "wifi_config", None
+                )
+            except Exception as exc:
+                logger.debug("wifi_get_config unavailable: %s", exc)
 
         return _parse_wan(ifaces, wifi_cfg)
 
@@ -129,10 +137,10 @@ def _is_routable_v4(addr: str) -> bool:
 
 
 def _is_cgnat(ip: str) -> bool:
-    # 100.64.0.0/10 — Starlink's CGNAT range
+    # 100.64.0.0/10 — Starlink's CGNAT range (second octet 64-127)
     try:
         parts = [int(x) for x in ip.split(".")]
-        return parts[0] == 100 and parts[1] < 128
+        return parts[0] == 100 and 64 <= parts[1] <= 127
     except Exception:
         return False
 
