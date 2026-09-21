@@ -1,5 +1,9 @@
 # Starlink Monitor
 
+<div align="center">
+  <img src="SL-Dash.png" alt="Starlink Monitor Icon" width="128" height="128" />
+</div>
+
 A local web dashboard that connects to a Starlink dish via its built-in gRPC
 API and displays live telemetry, obstruction maps, connected devices, and alert
 history — no cloud account required.
@@ -25,6 +29,26 @@ dish).
 ---
 
 ## Quick start
+
+### Windows (Standalone .exe — Easiest)
+
+Download and run the pre-built Windows application — no Python installation needed!
+
+```powershell
+git clone <this-repo> starlink-dashboard
+cd starlink-dashboard
+.\build-windows.bat
+```
+
+Run the built executable:
+```
+backend\dist\Starlink Monitor\Starlink Monitor.exe
+```
+
+The dashboard will automatically open in your browser at **http://localhost:8001**.
+
+**Or build manually:**
+- See [WINDOWS_BUILD.md](WINDOWS_BUILD.md) for detailed build instructions and troubleshooting
 
 ### Linux / macOS / Raspberry Pi
 
