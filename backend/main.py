@@ -28,7 +28,12 @@ DISH_ADDRESS = os.getenv("DISH_ADDRESS", "192.168.100.1:9200")
 
 # Production: serve the pre-built React app as static files from the same
 # process.  Set SERVE_STATIC=1 or run with --prod flag via start.sh.
-STATIC_DIR = pathlib.Path(__file__).parent.parent / "frontend" / "dist"
+# FRONTEND_DIST env var is set by tray.py for bundled app
+frontend_dist_env = os.getenv("FRONTEND_DIST")
+if frontend_dist_env:
+    STATIC_DIR = pathlib.Path(frontend_dist_env)
+else:
+    STATIC_DIR = pathlib.Path(__file__).parent.parent / "frontend" / "dist"
 SERVE_STATIC = os.getenv("SERVE_STATIC", "0") == "1" and STATIC_DIR.exists()
 
 

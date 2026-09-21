@@ -8,3 +8,6 @@ protobuf>=4.25.0
 websockets
 aiofiles
 python-dotenv
+pystray>=0.19.5
+Pillow>=10.0.0
+psutil>=5.9.0

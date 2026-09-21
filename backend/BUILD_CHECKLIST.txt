@@ -1,0 +1,98 @@
+STARLINK MONITOR - WINDOWS BUILD CHECKLIST
+==========================================
+
+PRE-BUILD REQUIREMENTS
+[ ] Python 3.10+ installed (check: python --version)
+[ ] Node.js 18+ installed (check: node --version)
+[ ] npm installed (check: npm --version)
+[ ] Git installed (for version control)
+[ ] (Optional) Inno Setup 6 installed from https://jrsoftware.org/isdl.php
+
+BEFORE BUILDING
+[ ] Frontend has been built (dist/ folder exists)
+[ ] All backend dependencies listed in requirements.txt
+[ ] No other application using port 8000
+[ ] Starlink dish is accessible at configured address
+
+RUNNING THE BUILD
+[ ] Open PowerShell in backend/ directory
+[ ] Run: .\build-windows.ps1
+[ ] Wait for build to complete (takes 2-5 minutes)
+
+VERIFYING BUILD SUCCESS
+[ ] dist\Starlink Monitor.exe exists
+[ ] dist\_internal\ folder exists with dependencies
+[ ] dist\frontend\dist\ folder exists with React build
+[ ] (Optional) dist\StarLinkMonitor-Setup.exe exists
+
+TESTING THE EXECUTABLE
+[ ] Double-click dist\Starlink Monitor.exe
+[ ] Wait for system tray icon to appear
+[ ] Icon should appear in system tray (usually bottom-right)
+[ ] Browser should open automatically to http://localhost:8000
+[ ] Dashboard should load with Starlink data
+[ ] Right-click menu should show "Open Dashboard" and "Quit"
+[ ] Clicking "Open Dashboard" opens browser to localhost:8000
+[ ] Click "Quit" should close cleanly
+
+POST-BUILD OPTIONS
+[ ] Distribute standalone exe (dist\Starlink Monitor.exe)
+[ ] OR distribute installer (dist\StarLinkMonitor-Setup.exe)
+[ ] Create desktop shortcut to exe if needed
+[ ] Test on different Windows 10/11 machines
+
+TROUBLESHOOTING
+If build fails:
+[ ] Check Python and Node.js versions
+[ ] Run: pip install --upgrade pip
+[ ] Delete .venv folder and try again
+[ ] Check firewall isn't blocking port 8000
+[ ] Review WINDOWS_BUILD.md for detailed troubleshooting
+
+If exe won't run:
+[ ] Check Windows Defender isn't quarantining it
+[ ] Try running as administrator
+[ ] Check port 8000 is available
+[ ] Check Starlink dish is online
+[ ] Review backend output for errors
+
+FILES CREATED BY BUILD PROCESS
+==============================
+New build files:
+  tray.py                     - System tray wrapper with browser integration
+  generate_icon.py            - Icon generation script
+  starlink-monitor.spec       - PyInstaller configuration
+  starlink-monitor.iss        - Inno Setup installer script
+  build-windows.ps1           - Build automation script
+  WINDOWS_BUILD.md            - Detailed build guide
+  BUILD_CHECKLIST.txt         - This file
+  requirements.txt            - UPDATED with pystray and Pillow
+  icon.ico                    - Generated application icon
+
+Generated output:
+  build/                      - PyInstaller intermediate files (can delete)
+  dist/                       - Final executable and dependencies
+  dist\Starlink Monitor.exe   - Standalone executable
+  dist\StarLinkMonitor-Setup.exe - Windows installer (if Inno Setup installed)
+
+DEPLOYMENT
+==========
+Standalone (.exe):
+  - Copy: dist\Starlink Monitor.exe
+  - Size: ~150MB (includes Python and all dependencies)
+  - Users: Just run the exe
+
+Installer (.exe):
+  - Copy: dist\StarLinkMonitor-Setup.exe
+  - Size: ~80MB (compressed)
+  - Users: Run installer, creates shortcuts and uninstall entry
+  - Recommended for official distribution
+
+NEXT STEPS
+==========
+1. Read WINDOWS_BUILD.md for detailed guide
+2. Follow PRE-BUILD REQUIREMENTS checklist
+3. Run build: .\build-windows.ps1
+4. Test exe in TESTING THE EXECUTABLE section
+5. Choose distribution method (standalone or installer)
+6. Test on target Windows machines
