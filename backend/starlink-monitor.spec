@@ -66,14 +66,14 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name="Starlink Monitor",
+    name="Starlink Monitor Debug",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=False,  # No console window
+    console=True,  # CONSOLE ENABLED FOR DEBUG
     disable_windowed_traceback=False,
     target_arch=None,
     codesign_identity=None,
@@ -90,5 +90,5 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name="Starlink Monitor",
+    name="Starlink Monitor Debug",
 )

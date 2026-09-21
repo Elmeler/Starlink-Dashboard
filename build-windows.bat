@@ -1,7 +1,7 @@
 @echo off
-REM Batch file for building Starlink Monitor
+REM Build script for Starlink Monitor Windows application
 REM Run this from the starlink-dashboard root directory
-REM Usage: build-windows.bat [debug]
+REM Usage: build-windows.bat
 
 echo.
 echo ===== Starlink Monitor Windows Build =====
@@ -22,14 +22,8 @@ if not exist "backend\tray.py" (
     exit /b 1
 )
 
-REM Check if debug flag is set
-if "%1"=="debug" (
-    echo Building DEBUG version...
-    call :build_debug
-) else (
-    echo Building RELEASE version...
-    call :build_release
-)
+echo Building Starlink Monitor...
+call :build
 
 if errorlevel 1 (
     echo.
@@ -41,21 +35,16 @@ if errorlevel 1 (
 echo.
 echo Build completed successfully!
 echo.
-if "%1"=="debug" (
-    echo Running debug version with console output...
-    echo.
-    "backend\dist\Starlink Monitor Debug\Starlink Monitor Debug.exe"
-) else (
-    echo You can now run the application:
-    echo   backend\dist\Starlink Monitor\Starlink Monitor.exe
-    echo.
-)
+echo You can now run the application:
+echo   backend\dist\Starlink Monitor\Starlink Monitor.exe
+echo.
 pause
 exit /b 0
 
-:build_debug
+:build
 setlocal
 cd backend
+
 if exist ".venv\Scripts\activate.bat" (
     call .venv\Scripts\activate.bat
 ) else (
@@ -76,33 +65,6 @@ echo Removing old builds...
 if exist "build" rmdir /s /q "build" >nul 2>&1
 if exist "dist" rmdir /s /q "dist" >nul 2>&1
 
-echo Building debug executable...
-pyinstaller starlink-monitor-debug.spec
-exit /b %errorlevel%
-
-:build_release
-setlocal
-cd backend
-if exist ".venv\Scripts\activate.bat" (
-    call .venv\Scripts\activate.bat
-) else (
-    echo Creating virtual environment...
-    python -m venv .venv
-    call .venv\Scripts\activate.bat
-)
-
-echo Installing dependencies...
-python -m pip install --upgrade pip >nul
-pip install -r requirements.txt >nul
-pip install pyinstaller >nul
-
-echo Generating icon...
-python generate_icon.py >nul 2>&1
-
-echo Removing old builds...
-if exist "build" rmdir /s /q "build" >nul 2>&1
-if exist "dist" rmdir /s /q "dist" >nul 2>&1
-
-echo Building release executable...
+echo Building executable...
 pyinstaller starlink-monitor.spec
 exit /b %errorlevel%
