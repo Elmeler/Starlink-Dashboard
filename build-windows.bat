@@ -35,9 +35,27 @@ if errorlevel 1 (
 echo.
 echo Build completed successfully!
 echo.
-echo You can now run the application:
-echo   backend\dist\Starlink Monitor\Starlink Monitor.exe
-echo.
+
+REM Copy the compiled executable to root directory for easy access
+if exist "backend\dist\Starlink Monitor" (
+    echo.
+    echo Copying application to root directory...
+    if exist "Starlink Monitor" rmdir /s /q "Starlink Monitor" >nul 2>&1
+    xcopy "backend\dist\Starlink Monitor" "Starlink Monitor" /E /I /Q
+
+    if exist "Starlink Monitor\Starlink Monitor.exe" (
+        echo.
+        echo ===== SUCCESS =====
+        echo Application ready at: Starlink Monitor\Starlink Monitor.exe
+        echo Double-click to run!
+        echo.
+    ) else (
+        echo Error copying application
+    )
+) else (
+    echo Warning: Could not find built application
+)
+
 pause
 exit /b 0
 
