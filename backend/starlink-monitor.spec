@@ -28,10 +28,12 @@ datas += collect_data_files("fastapi")
 datas += collect_data_files("webview")
 
 hiddenimports = [
-    # pywebview
+    # pywebview + pythonnet (WinForms backend on Windows)
     "webview",
     "webview.platforms.winforms",
     "clr",
+    "clr_loader",
+    "pythonnet",
     # uvicorn internals
     "uvicorn.logging",
     "uvicorn.lifespan",
