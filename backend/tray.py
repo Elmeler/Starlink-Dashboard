@@ -2,7 +2,6 @@ import asyncio
 import os
 import sys
 import threading
-import webbrowser
 import time
 import traceback
 import psutil
@@ -148,17 +147,22 @@ def run_server():
         traceback.print_exc()
 
 
+import socket
+import webview
+
+APP_URL  = "http://127.0.0.1:8001"
+_window  = None   # pywebview window, set after webview.start()
+
+
 def wait_for_server(max_attempts=30, delay=0.5):
-    """Wait for server to be ready, with timeout."""
-    import socket
     for attempt in range(max_attempts):
         try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            result = sock.connect_ex(("127.0.0.1", 8001))
-            sock.close()
-            if result == 0:
+            s = socket.socket()
+            if s.connect_ex(("127.0.0.1", 8001)) == 0:
+                s.close()
                 print(f"Server ready after {attempt * delay:.1f}s")
                 return True
+            s.close()
         except Exception:
             pass
         time.sleep(delay)
@@ -166,75 +170,99 @@ def wait_for_server(max_attempts=30, delay=0.5):
     return False
 
 
-def open_browser():
-    """Open the default browser to the dashboard."""
-    try:
-        url = "http://localhost:8001"
-        print(f"Opening browser: {url}")
-        webbrowser.open(url)
-    except Exception as e:
-        print(f"Error opening browser: {e}")
+# ── tray callbacks ────────────────────────────────────────────────────────────
+
+def _show_window():
+    if _window:
+        _window.show()
+        _window.restore()
 
 
-def setup(icon):
-    """Called when the icon is ready."""
-    print("System tray icon loaded, waiting for server...")
-    # Wait for server to be ready before opening browser
-    if wait_for_server():
-        open_browser()
-    else:
-        print("Warning: Server may not be ready, but opening browser anyway...")
-        open_browser()
+def _hide_window():
+    if _window:
+        _window.hide()
 
 
-def on_quit(icon, item):
-    """Quit the application."""
+def _quit_app(icon, item):
     print("Quitting Starlink Monitor...")
     icon.stop()
+    if _window:
+        _window.destroy()
 
+
+# ── startup sequence (runs in background thread) ──────────────────────────────
+
+def _startup(icon):
+    """Wait for server, then show the window. Runs in the pystray setup thread."""
+    print("Waiting for server...")
+    wait_for_server()
+    print("Server ready — showing window")
+    if _window:
+        _window.load_url(APP_URL)   # navigate now that the server is up
+        _window.show()
+
+
+# ── window close handler ──────────────────────────────────────────────────────
+
+def _on_window_closing():
+    """Hide to tray instead of exiting when the user clicks ×."""
+    if _window:
+        _window.hide()
+    return False   # returning False tells pywebview to NOT destroy the window
+
+
+# ── main ──────────────────────────────────────────────────────────────────────
 
 def main():
-    """Main entry point for the application."""
+    global _window
+
     print("=" * 60)
     print("Starlink Monitor - Starting")
     print("=" * 60)
 
-    # Check for and kill existing instances
-    print("Checking for existing instances...")
     check_single_instance()
 
-    try:
-        # Start the server in a background thread (non-daemon for proper shutdown)
-        print("Starting backend server thread...")
-        server_thread = threading.Thread(target=run_server, daemon=False)
-        server_thread.start()
+    # Server runs in a background thread
+    server_thread = threading.Thread(target=run_server, daemon=False)
+    server_thread.start()
 
-        # Create and show the tray icon
-        print("Creating system tray icon...")
-        try:
-            icon = Icon(
-                "Starlink Monitor",
-                create_icon(),
-                menu=Menu(
-                    MenuItem("Open Dashboard", lambda icon, item: open_browser()),
-                    MenuItem("Quit", on_quit),
-                ),
-            )
-            print("Running tray icon...")
-            icon.run(setup=setup)
-        except Exception as e:
-            print(f"Error with tray icon: {e}")
-            import traceback
-            traceback.print_exc()
-            # Keep server running even if tray fails
-            while True:
-                time.sleep(1)
-    except KeyboardInterrupt:
-        print("Interrupted by user")
+    # Tray icon — run_detached() frees the main thread for pywebview
+    try:
+        icon = Icon(
+            "Starlink Monitor",
+            create_icon(),
+            menu=Menu(
+                MenuItem("Show Dashboard", lambda i, it: _show_window()),
+                MenuItem("Hide Dashboard", lambda i, it: _hide_window()),
+                MenuItem("Quit",           _quit_app),
+            ),
+        )
+        icon.run_detached(setup=_startup)
+        print("Tray icon running detached")
     except Exception as e:
-        print(f"Fatal error: {e}")
-        import traceback
+        print(f"Tray icon failed (continuing without it): {e}")
         traceback.print_exc()
+
+    # Create the window hidden; _startup will show it once the server is ready
+    _window = webview.create_window(
+        "Starlink Monitor",
+        url="about:blank",          # placeholder until server is up
+        width=1440,
+        height=900,
+        min_size=(900, 600),
+        hidden=True,
+    )
+    _window.events.closing += _on_window_closing
+
+    # webview.start() MUST run on the main thread (Windows/WinForms requirement)
+    webview.start(debug=False)
+
+    # webview.start() blocks until all windows are destroyed (app quit)
+    print("Webview exited — shutting down")
+    try:
+        icon.stop()
+    except Exception:
+        pass
 
 
 if __name__ == "__main__":

@@ -4,9 +4,10 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 block_cipher = None
 
-# Absolute path to the frontend dist folder (relative to spec file location)
-spec_dir = os.path.dirname(os.path.abspath(SPECPATH))
-frontend_dist = os.path.join(spec_dir, "..", "frontend", "dist")
+# SPECPATH is the directory containing the spec file (backend/).
+# Go one level up to reach the repo root, then into frontend/dist.
+spec_dir = os.path.abspath(SPECPATH)
+frontend_dist = os.path.normpath(os.path.join(spec_dir, "..", "frontend", "dist"))
 
 datas = []
 if os.path.exists(frontend_dist):
@@ -24,8 +25,13 @@ else:
 
 datas += collect_data_files("uvicorn")
 datas += collect_data_files("fastapi")
+datas += collect_data_files("webview")
 
 hiddenimports = [
+    # pywebview
+    "webview",
+    "webview.platforms.winforms",
+    "clr",
     # uvicorn internals
     "uvicorn.logging",
     "uvicorn.lifespan",
@@ -45,7 +51,6 @@ hiddenimports = [
     # gRPC
     "grpc",
     "grpc.aio",
-    "_grpc_protos",
     # Starlink client
     "starlink_grpc",
     "yagrc",
