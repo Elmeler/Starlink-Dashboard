@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import time
 from typing import Optional
 
 import starlink_grpc
@@ -11,6 +12,9 @@ from dish import telemetry
 
 router  = APIRouter()
 logger  = logging.getLogger(__name__)
+
+_SERVICE_TTL = 30   # seconds
+_cache: dict[str, tuple[float, dict]] = {}
 
 
 def _enum_name(msg, field_name: str) -> Optional[str]:
@@ -33,20 +37,32 @@ async def get_service():
     """
     Account / plan information read from the dish status protobuf.
     Enum fields are resolved to their string names via the protobuf DESCRIPTOR.
+    Cached for 30 s to avoid hammering gRPC on every page load.
     """
+    now = time.monotonic()
+    if "data" in _cache:
+        ts, payload = _cache["data"]
+        if now - ts < _SERVICE_TTL:
+            return payload
+    else:
+        ts, payload = 0.0, None
+
     try:
         raw = await asyncio.get_event_loop().run_in_executor(
             None,
             lambda: starlink_grpc.get_status(context=telemetry.get_context()),
         )
     except Exception as exc:
+        if payload is not None:
+            logger.debug("service refresh failed, serving stale data: %s", exc)
+            return payload
         raise HTTPException(status_code=503, detail=str(exc))
 
     device_info = getattr(raw, "device_info", None)
     sw_stats    = getattr(raw, "software_update_stats", None)
     reboot_ts   = int(getattr(sw_stats, "reboot_scheduled_utc_time", 0) or 0)
 
-    return {
+    payload = {
         # Plan / service class
         "class_of_service":  _enum_name(raw, "class_of_service"),
         "mobility_class":    _enum_name(raw, "mobility_class"),
@@ -63,12 +79,15 @@ async def get_service():
         "generation_number": int(getattr(device_info,  "generation_number", 0) or 0),
 
         # Software update
-        "sw_update_state":          _enum_name(raw, "software_update_state"),
+        "sw_update_state":           _enum_name(raw, "software_update_state"),
         "sw_update_reboot_required": bool(getattr(sw_stats, "update_requires_reboot", False)),
-        "sw_update_reboot_ts":      reboot_ts if reboot_ts > 0 else None,
-        "sw_update_progress":       float(getattr(sw_stats, "software_update_progress", 0) or 0),
+        "sw_update_reboot_ts":       reboot_ts if reboot_ts > 0 else None,
+        "sw_update_progress":        float(getattr(sw_stats, "software_update_progress", 0) or 0),
 
         # Misc
         "account_shard": int(getattr(raw, "account_shard", 0) or 0),
         "nat_flag":      int(getattr(raw, "nat_flag",      0) or 0),
     }
+
+    _cache["data"] = (now, payload)
+    return payload

@@ -66,6 +66,9 @@ async def get_location_endpoint():
             if code is grpc.StatusCode.PERMISSION_DENIED:
                 reason = "PERMISSION_DENIED"
                 logger.debug("GPS location: PERMISSION_DENIED — app authorisation required")
+            elif code is grpc.StatusCode.CANCELLED:
+                reason = "GRPC_ERROR"
+                logger.debug("GPS location: channel closed (dish reconnecting)")
             else:
                 reason = "GRPC_ERROR"
                 logger.warning("GPS location gRPC error: %s", exc)

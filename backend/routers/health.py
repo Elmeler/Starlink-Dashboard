@@ -1,19 +1,29 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
+from dish import telemetry
 from dish.client import dish_client
 
 router = APIRouter()
 
 
 @router.get("/health")
-def health():
+def health(live: bool = Query(default=False)):
     """
-    Check whether the backend is alive and whether the dish gRPC endpoint
-    is reachable. Does a live probe each time (3s timeout).
+    Check backend health and dish reachability.
+
+    By default returns the cached status from the telemetry poller (instant).
+    Pass ?live=true to force a real gRPC probe (adds ~220ms, used by Settings
+    "Test connection" button where fresh state is important).
     """
-    reachable = dish_client.probe()
+    if live:
+        reachable = dish_client.probe()
+        error     = dish_client.last_error
+    else:
+        reachable = telemetry._dish_ok
+        error     = None if reachable else "Dish not responding to telemetry polls"
+
     return {
-        "backend": "ok",
+        "backend":        "ok",
         "dish_reachable": reachable,
-        "dish_address": dish_client.address,
-        "error": dish_client.last_error,
+        "dish_address":   dish_client.address,
+        "error":          error,
     }

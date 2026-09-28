@@ -1,9 +1,3 @@
-/**
- * Semicircle arc temperature gauge.
- * Reads tempUnit ('C' | 'F') from LiveContext when available.
- */
-import { useContext } from 'react'
-import { LiveContext } from '../App'
 
 const ZONES = [
   { from: 0,    to: 0.60, dim: '#0d3320', bright: '#22c55e' },
@@ -38,7 +32,6 @@ function arcPath(cx, cy, r, f1, f2) {
   return `M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 0 0 ${x2.toFixed(2)} ${y2.toFixed(2)}`
 }
 
-function cToF(c) { return c != null ? Math.round(c * 9 / 5 + 32) : null }
 
 export default function TempGauge({
   label    = 'Temp',
@@ -47,10 +40,8 @@ export default function TempGauge({
   size     = 130,
   unavailable = false, // set true when hardware doesn't report this sensor
 }) {
-  const ctx      = useContext(LiveContext)
-  const tempUnit = ctx?.settings?.tempUnit ?? 'C'
-  const display  = tempUnit === 'F' ? cToF(value) : (value != null ? Math.round(value) : null)
-  const unit     = `°${tempUnit}`
+  const display = value != null ? Math.round(value) : null
+  const unit    = '°C'
 
   // Short-circuit: render a greyed-out placeholder when hardware doesn't report
   if (unavailable) {

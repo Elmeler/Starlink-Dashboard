@@ -31,6 +31,9 @@ HISTORY_MAXLEN   = 900 # rolling buffer size (15 min at 1 sample/s)
 
 _context: Optional[starlink_grpc.ChannelContext] = None
 _dish_address: str = "192.168.100.1:9200"
+_last_reconnect: float = 0.0  # monotonic timestamp of last context recreation
+
+_TRANSIENT = ("Channel closed", "Connection reset", "Stream removed", "CANCELLED", "Deadline Exceeded")
 
 # Latest parsed status snapshot
 _current: dict = {}
@@ -90,6 +93,23 @@ async def start_polling(address: str = "192.168.100.1:9200") -> None:
     logger.info("Telemetry polling started -> %s", address)
 
 
+def _reconnect() -> None:
+    """Recreate the gRPC context after a channel closure. Rate-limited to once
+    per second so both polling tasks don't stomp on each other."""
+    global _context, _last_reconnect
+    now = time.monotonic()
+    if now - _last_reconnect < 1.0:
+        return
+    _last_reconnect = now
+    try:
+        if _context is not None:
+            _context.close()
+    except Exception:
+        pass
+    _context = starlink_grpc.ChannelContext(target=_dish_address)
+    logger.debug("gRPC channel recreated -> %s", _dish_address)
+
+
 # ── background tasks ─────────────────────────────────────────────────────────
 
 async def _poll_status() -> None:
@@ -103,14 +123,20 @@ async def _poll_status() -> None:
             snapshot["dish_connected"] = True
             _current = snapshot
             _dish_ok = True
-            backoff = 1.0
+            backoff  = 1.0
             for cb in list(_ws_callbacks):
                 try:
                     await cb(snapshot)
                 except Exception:
                     pass
         except starlink_grpc.GrpcError as exc:
-            logger.warning("status poll failed: %s (retry in %.0fs)", exc, backoff)
+            exc_str = str(exc)
+            if any(t in exc_str for t in _TRANSIENT):
+                logger.debug("status poll: transient disconnect, reconnecting (%s)", exc_str.split("\n")[0])
+                _reconnect()
+            else:
+                logger.warning("status poll failed: %s (retry in %.0fs)", exc, backoff)
+                backoff = min(backoff * 2, 60.0)
             _dish_ok = False
             # Broadcast the disconnected state so the UI updates immediately
             error_msg = {"dish_connected": False, "timestamp": int(time.time())}
@@ -120,7 +146,6 @@ async def _poll_status() -> None:
                 except Exception:
                     pass
             await asyncio.sleep(backoff)
-            backoff = min(backoff * 2, 60.0)
             continue
         await asyncio.sleep(STATUS_INTERVAL)
 
@@ -139,9 +164,14 @@ async def _poll_history() -> None:
                 store.write_points(points)
             backoff = 1.0
         except starlink_grpc.GrpcError as exc:
-            logger.warning("history poll failed: %s (retry in %.0fs)", exc, backoff)
+            exc_str = str(exc)
+            if any(t in exc_str for t in _TRANSIENT):
+                logger.debug("history poll: transient disconnect, reconnecting (%s)", exc_str.split("\n")[0])
+                _reconnect()
+            else:
+                logger.warning("history poll failed: %s (retry in %.0fs)", exc, backoff)
+                backoff = min(backoff * 2, 60.0)
             await asyncio.sleep(backoff)
-            backoff = min(backoff * 2, 60.0)
             continue
         await asyncio.sleep(HISTORY_INTERVAL)
 
@@ -158,6 +188,7 @@ def _fetch_status() -> dict:
 
     # temperatures live in the raw protobuf, not in the high-level dict
     dish_temp, board_temp = _read_temps(raw)
+    has_actuators = _read_has_actuators(raw)
 
     active_alerts = parse_alerts(alerts_raw)
 
@@ -182,6 +213,7 @@ def _fetch_status() -> dict:
         "gps_enabled":     status.get("gps_enabled"),
         "dish_temp_c":     dish_temp,
         "board_temp_c":    board_temp,
+        "has_actuators":   has_actuators,
         "alerts":          active_alerts,
     }
 
@@ -248,6 +280,27 @@ def _read_temps(raw) -> tuple[Optional[float], Optional[float]]:
         logger.debug("_read_temps failed", exc_info=True)
 
     return dish_temp, board_temp
+
+
+def _read_has_actuators(raw) -> Optional[bool]:
+    """
+    Return True if the dish has physical motors, False for electronic beam steering,
+    None if the field is absent or unknown (assume actuators present for safety).
+
+    Enum values from proto: HAS_ACTUATORS_UNKNOWN=0, HAS_ACTUATORS_YES=1, HAS_ACTUATORS_NO=2
+    """
+    try:
+        dish = getattr(raw, "dish_get_status", None)
+        if dish is None:
+            return None
+        val = int(getattr(dish, "has_actuators", 0))
+        if val == 1:
+            return True
+        if val == 2:
+            return False
+        return None
+    except Exception:
+        return None
 
 
 def _safe_temp(value) -> Optional[float]:

@@ -69,11 +69,12 @@ export const ALERT_META = {
   mast_not_near_vertical: {
     description:
       'The dish tilt sensor reports the mount is more than ~7° from vertical. ' +
-      'Performance and coverage are reduced when the dish is tilted.',
+      'Performance and sky coverage are reduced when the dish is tilted beyond this limit.',
     actions: [
-      'Adjust the pole or mounting bracket so the mast is as close to vertical as possible',
-      'Use a spirit level — Starlink\'s motorised dishes can compensate up to about 7° of tilt',
-      'Exceeding the tilt limit prevents the motors from reaching the full coverage area',
+      'Use a spirit level and adjust the pole or mounting bracket until the mast is within 7° of vertical',
+      'Motorised dishes (Standard, Gen 3) can electronically compensate small tilts but still lose coverage area beyond 7°',
+      'Electronically steered dishes (HP Gen 1, Flat HP) cannot compensate for tilt — the beam will miss part of the sky',
+      'On a vehicle or boat, check the mounting base for flex or movement that could cause the reading',
     ],
     canReboot: false,
   },
@@ -216,6 +217,29 @@ export const ALERT_META = {
     actions: [
       'Check the cable between the UPSU and router for damage',
       'Try a different cable or port if available',
+    ],
+    canReboot: false,
+  },
+
+  moving_while_not_mobile: {
+    description:
+      'The dish has detected movement but your plan does not include the Mobile or Roam add-on. ' +
+      'Service may be suspended until the dish returns to its registered address.',
+    actions: [
+      'If you intended to move, add the Roam add-on in the Starlink app before relocating',
+      'If the dish has not moved, check its mounting — vibration or a tilting mount can trigger this',
+      'Return the dish to its registered service address to restore service',
+    ],
+    canReboot: false,
+  },
+
+  moving_too_fast_for_policy: {
+    description:
+      'The dish is moving faster than your plan permits. ' +
+      'Standard Roam service is for stationary or slow-moving use; in-motion service requires the Mobile Priority plan.',
+    actions: [
+      'Slow down or stop the vehicle to restore service on a Roam plan',
+      'Upgrade to Mobile Priority if you need connectivity while in motion',
     ],
     canReboot: false,
   },

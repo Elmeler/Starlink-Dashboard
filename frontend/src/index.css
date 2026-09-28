@@ -2,12 +2,147 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Design tokens ──────────────────────────────────────────────────────────── */
+
+:root {
+  /* Structural surfaces */
+  --bg-base:   #0a0c10;
+  --bg-card:   #0d1017;
+  --bg-inner:  #0a0c10;
+  --bg-input:  #111520;
+  --border:    #1e2330;
+  --border-dim:#1a2030;
+
+  /* Text hierarchy */
+  --text-1:    #e2e8f0;
+  --text-2:    #cbd5e1;
+  --text-3:    #94a3b8;
+  --text-4:    #64748b;
+  --text-5:    #475569;
+  --text-6:    #374151;
+  --text-mono: #9db4cc;
+
+  /* Accent (interactive blue) */
+  --accent:         #4d9fff;
+  --accent-hover:   #8ba4c4;
+  --accent-bg:      #0a2d6e;
+  --accent-border:  #1a4a9e;
+
+  /* Table header */
+  --tbl-head: #111520;
+
+  /* ── Status palettes ── */
+  /* Green — connected / good */
+  --good:        #22c55e;
+  --good-bg:     #061a0e;
+  --good-border: #14532d;
+
+  /* Amber — warning / partial */
+  --warn:        #f59e0b;
+  --warn-bg:     #1c1000;
+  --warn-border: #713f12;
+
+  /* Red — error / offline */
+  --bad:        #ef4444;
+  --bad-bg:     #1a0000;
+  --bad-border: #7f1d1d;
+
+  /* Blue — informational */
+  --info:        #60a5fa;
+  --info-bg:     #040d1f;
+  --info-border: #1e3a8a;
+
+  /* Orange — active alert cards */
+  --alert-bg:     #7c2d12;
+  --alert-border: #c2410c;
+  --alert-accent: #fb923c;
+  --alert-text:   #fed7aa;
+  --alert-sub:    #fcd9aa;
+
+  /* Dashboard health-card per-state backgrounds */
+  --stat-good-bg:     #060f09;
+  --stat-good-border: #166534;
+  --stat-warn-bg:     #0f0900;
+  --stat-warn-border: #78350f;
+  --stat-crit-bg:     #0f0505;
+  --stat-crit-border: #7c2d12;
+  --stat-unk-dot:     #2a3344;
+}
+
+[data-theme="light"] {
+  /* Structural surfaces */
+  --bg-base:   #f0f4f8;
+  --bg-card:   #ffffff;
+  --bg-inner:  #f5f8fc;
+  --bg-input:  #eef2f7;
+  --border:    #dde3ee;
+  --border-dim:#e8edf5;
+
+  /* Text hierarchy */
+  --text-1:    #0f172a;
+  --text-2:    #1e293b;
+  --text-3:    #475569;
+  --text-4:    #64748b;
+  --text-5:    #94a3b8;
+  --text-6:    #b0bdd0;
+  --text-mono: #2563eb;
+
+  /* Accent */
+  --accent:        #1d6fd4;
+  --accent-hover:  #3b6ea8;
+  --accent-bg:     #e8f0fd;
+  --accent-border: #93c5fd;
+
+  /* Table header */
+  --tbl-head: #eef2f7;
+
+  /* ── Status palettes (light) ── */
+  --good:        #15803d;
+  --good-bg:     #f0fdf4;
+  --good-border: #bbf7d0;
+
+  --warn:        #b45309;
+  --warn-bg:     #fffbeb;
+  --warn-border: #fde68a;
+
+  --bad:        #b91c1c;
+  --bad-bg:     #fef2f2;
+  --bad-border: #fecaca;
+
+  --info:        #1d4ed8;
+  --info-bg:     #eff6ff;
+  --info-border: #bfdbfe;
+
+  --alert-bg:     #fff7ed;
+  --alert-border: #fed7aa;
+  --alert-accent: #ea580c;
+  --alert-text:   #9a3412;
+  --alert-sub:    #7c2d12;
+
+  --stat-good-bg:     #f0fdf4;
+  --stat-good-border: #bbf7d0;
+  --stat-warn-bg:     #fffbeb;
+  --stat-warn-border: #fde68a;
+  --stat-crit-bg:     #fef2f2;
+  --stat-crit-border: #fecaca;
+  --stat-unk-dot:     #94a3b8;
+}
+
+/* ── Keyframe animations ─────────────────────────────────────────────────────── */
+/* Defined explicitly so the 'ping' animation referenced via inline style always
+   compiles into the output bundle regardless of Tailwind's content scan. */
+@keyframes ping {
+  75%, 100% { transform: scale(2); opacity: 0; }
+}
+
+/* ── Base reset ─────────────────────────────────────────────────────────────── */
+
 @layer base {
   *, *::before, *::after { box-sizing: border-box; }
   html, body, #root { height: 100%; margin: 0; padding: 0; }
   body {
-    background-color: #0a0c10;
-    color: #e2e8f0;
+    background-color: var(--bg-base);
+    color: var(--text-1);
     font-family: 'Space Grotesk', Inter, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
@@ -18,7 +153,7 @@
     font-size: 10px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: #4a5568;
+    color: var(--text-4);
   }
   .mono { font-family: 'JetBrains Mono', monospace; }
 }

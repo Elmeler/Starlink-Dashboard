@@ -23,6 +23,8 @@ _ALERT_LABELS = {
     "dish_water_detected":             "Water detected on dish",
     "router_water_detected":           "Water detected on router",
     "upsu_router_port_slow":           "UPSU router port slow",
+    "moving_while_not_mobile":         "Moving without mobile plan",
+    "moving_too_fast_for_policy":      "Moving too fast for plan",
 }
 
 

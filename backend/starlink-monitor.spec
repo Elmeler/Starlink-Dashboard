@@ -4,42 +4,55 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 block_cipher = None
 
-# Get the absolute path to the frontend dist folder
-# Use absolute path calculation based on spec file location
-spec_dir = os.getcwd()  # PyInstaller runs from the spec directory
+# Absolute path to the frontend dist folder (relative to spec file location)
+spec_dir = os.path.dirname(os.path.abspath(SPECPATH))
 frontend_dist = os.path.join(spec_dir, "..", "frontend", "dist")
 
-# Collect data files for packages that need them
 datas = []
 if os.path.exists(frontend_dist):
     datas.append((frontend_dist, "frontend/dist"))
     print(f"Including frontend from: {frontend_dist}")
 else:
-    print(f"Warning: frontend/dist not found at {frontend_dist}")
+    print(f"WARNING: frontend/dist not found at {frontend_dist}")
+    print("Run 'npm run build' in the frontend directory first.")
 
-# Add data files for packages
+icon_file = os.path.join(spec_dir, "icon.ico")
+if os.path.exists(icon_file):
+    datas.append((icon_file, "."))
+else:
+    print("WARNING: icon.ico not found — run python generate_icon.py first.")
+
 datas += collect_data_files("uvicorn")
 datas += collect_data_files("fastapi")
 
-# Collect hidden imports for gRPC and other packages
 hiddenimports = [
+    # uvicorn internals
     "uvicorn.logging",
     "uvicorn.lifespan",
+    "uvicorn.lifespan.on",
     "uvicorn.loops",
     "uvicorn.loops.auto",
     "uvicorn.protocols",
     "uvicorn.protocols.http",
     "uvicorn.protocols.http.auto",
-    "uvicorn.protocols.websocket",
-    "uvicorn.protocols.websocket.auto",
-    "uvicorn.lifespan.on",
+    "uvicorn.protocols.websockets",
+    "uvicorn.protocols.websockets.auto",
+    # fastapi / starlette
     "fastapi",
     "fastapi.openapi",
+    "starlette.routing",
+    "starlette.staticfiles",
+    # gRPC
     "grpc",
     "grpc.aio",
     "_grpc_protos",
+    # Starlink client
+    "starlink_grpc",
+    "yagrc",
+    "yagrc.reflector",
 ]
 hiddenimports += collect_submodules("grpc")
+hiddenimports += collect_submodules("starlink_grpc")
 
 a = Analysis(
     ["tray.py"],
@@ -50,7 +63,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludedimports=[],
+    excludes=[],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
@@ -59,21 +72,18 @@ a = Analysis(
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
+# onedir mode: EXE only gets scripts — binaries/datas go into COLLECT
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
     [],
+    exclude_binaries=True,
     name="Starlink Monitor",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    upx_exclude=[],
-    runtime_tmpdir=None,
-    console=True,  # CONSOLE ENABLED FOR DEBUG
+    console=False,
     disable_windowed_traceback=False,
     target_arch=None,
     codesign_identity=None,
@@ -81,7 +91,6 @@ exe = EXE(
     icon="icon.ico",
 )
 
-# Use onedir mode (creates folder with exe + dependencies)
 coll = COLLECT(
     exe,
     a.binaries,

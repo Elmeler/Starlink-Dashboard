@@ -55,6 +55,8 @@ const OUI_DB = new Map([
   ['a0:04:60','router'], ['b0:39:56','router'], ['6c:b0:ce','router'],
   // ── Eero ─────────────────────────────────────────────────────────────────
   ['f4:f5:db','router'], ['44:65:0d','router'],
+  // ── SpaceX / Starlink hardware (TIBRO Corp. — SpaceX subsidiary) ─────────
+  ['74:24:9f','router'],
 ])
 
 /**

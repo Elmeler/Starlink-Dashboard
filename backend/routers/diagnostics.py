@@ -3,12 +3,9 @@ import logging
 
 from fastapi import APIRouter
 from dish import diagnostics as diag, telemetry
-import starlink_grpc
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-
-_context = starlink_grpc.ChannelContext()
 
 
 @router.get("/diagnostics")
@@ -16,16 +13,20 @@ async def get_diagnostics():
     """Obstruction map, dish pointing direction, and thermal data."""
     status = telemetry.get_current()
 
-    try:
-        obs_map = await asyncio.wait_for(
-            asyncio.get_event_loop().run_in_executor(
-                None, lambda: diag.get_obstruction_map(context=_context)
-            ),
-            timeout=4.0,
-        )
-    except asyncio.TimeoutError:
-        logger.warning("obstruction map fetch timed out")
-        obs_map = None
+    obs_map = None
+    ctx = telemetry.get_context()
+    if ctx is not None:
+        try:
+            obs_map = await asyncio.wait_for(
+                asyncio.get_event_loop().run_in_executor(
+                    None, lambda: diag.get_obstruction_map(context=ctx)
+                ),
+                timeout=4.0,
+            )
+        except asyncio.TimeoutError:
+            logger.warning("obstruction map fetch timed out")
+        except Exception as exc:
+            logger.warning("obstruction map fetch failed: %s", exc)
 
     return {
         "obstruction_map":         obs_map,

@@ -49,7 +49,12 @@ install_nodejs() {
   fi
 
   # NodeSource LTS (v20) — works on arm64 and armv7l (Pi 3/4/5)
-  curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+  # --connect-timeout 10: fail fast instead of hanging when offline
+  if ! curl -fsSL --connect-timeout 10 https://deb.nodesource.com/setup_20.x | sudo -E bash -; then
+    red "ERROR: Node.js auto-install failed (no internet or NodeSource unreachable)."
+    red "  Install manually: https://nodejs.org/en/download"
+    exit 1
+  fi
   sudo apt-get install -y nodejs
 
   if ! command -v npm &>/dev/null; then
@@ -135,17 +140,48 @@ fi
 VENV_PYTHON="$VENV_DIR/bin/python"
 VENV_PIP="$VENV_DIR/bin/pip"
 
-# ── install backend dependencies ──────────────────────────────────────────────
-yellow "-> Installing / updating backend dependencies …"
-"$VENV_PIP" install --upgrade pip -q
-"$VENV_PIP" install -r "$SCRIPT_DIR/backend/requirements.txt" -q
-green "  Backend dependencies ready."
+# ── install backend dependencies (skip when requirements.txt hasn't changed) ──
+REQ_FILE="$SCRIPT_DIR/backend/requirements.txt"
+REQ_HASH_FILE="$VENV_DIR/.req_hash"
+REQ_HASH=$(md5sum "$REQ_FILE" 2>/dev/null | cut -d' ' -f1 \
+        || shasum "$REQ_FILE" 2>/dev/null | cut -d' ' -f1 \
+        || echo "unknown")
+
+if [[ -f "$REQ_HASH_FILE" && "$(cat "$REQ_HASH_FILE")" == "$REQ_HASH" && "$REQ_HASH" != "unknown" ]]; then
+  green "  Backend dependencies up to date — skipping install."
+else
+  yellow "-> Installing / updating backend dependencies …"
+  if ! "$VENV_PIP" install -r "$REQ_FILE" -q; then
+    red "ERROR: pip install failed."
+    red "  If you are offline, ensure all packages are cached or pre-installed in the venv."
+    exit 1
+  fi
+  echo "$REQ_HASH" > "$REQ_HASH_FILE"
+  green "  Backend dependencies ready."
+fi
 
 # ── production frontend build ─────────────────────────────────────────────────
+npm_install_if_needed() {
+  local dir="$1"
+  # npm ci writes node_modules/.package-lock.json on success; compare with
+  # package-lock.json to decide whether an install is actually needed.
+  if [[ -f "$dir/node_modules/.package-lock.json" ]] && \
+     diff -q "$dir/package-lock.json" "$dir/node_modules/.package-lock.json" &>/dev/null; then
+    green "  Frontend dependencies up to date — skipping npm ci."
+  else
+    yellow "-> Installing frontend dependencies …"
+    if ! "$NPM" ci -q; then
+      red "ERROR: npm ci failed."
+      red "  If you are offline, ensure node_modules/ is already populated."
+      exit 1
+    fi
+    green "  Frontend dependencies ready."
+  fi
+}
+
 if [[ "$PROD" -eq 1 && -n "$NPM" ]]; then
-  yellow "-> Installing frontend dependencies …"
   cd "$SCRIPT_DIR/frontend"
-  "$NPM" ci -q
+  npm_install_if_needed "$SCRIPT_DIR/frontend"
 
   yellow "-> Building React app …"
   "$NPM" run build
@@ -173,7 +209,7 @@ FRONTEND_PID=""
 if [[ "$PROD" -eq 0 && -n "$NPM" ]]; then
   yellow "-> Starting Vite dev server …"
   cd "$SCRIPT_DIR/frontend"
-  "$NPM" ci -q
+  npm_install_if_needed "$SCRIPT_DIR/frontend"
   # --logLevel warn / --clearScreen false: suppress Vite's own "Local:/Network:"
   # ready banner so it can't print a second, differently-formatted port after
   # our summary below — the summary at the end of this script is the one

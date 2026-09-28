@@ -1,9 +1,8 @@
 import { useState, useCallback } from 'react'
 
 export const DEFAULTS = {
-  dishAddress:   '192.168.100.1:9200',
-  pollIntervalS: 5,       // seconds between REST diagnostic/device polls
-  tempUnit:      'C',     // 'C' | 'F'
+  dishAddress: '192.168.100.1:9200',
+  theme:       'dark',  // 'dark' | 'light'
 }
 
 function load() {

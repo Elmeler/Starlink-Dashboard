@@ -30,7 +30,7 @@ The application:
 
 ### Quick Build (All Steps)
 
-Open PowerShell in `starlink-dashboard/backend/` and run:
+Open PowerShell in the `starlink-dashboard/` root directory and run:
 
 ```powershell
 .\build-windows.ps1
@@ -104,13 +104,13 @@ Installer will be in `dist/StarLinkMonitor-Setup.exe`
 After building:
 
 ```
-backend/
-├── dist/
-│   ├── Starlink Monitor.exe          (Standalone application)
-│   ├── _internal/                    (All dependencies and libraries)
-│   └── frontend/dist/                (React frontend files)
-└── dist/
-    └── StarLinkMonitor-Setup.exe     (Windows installer)
+Starlink Monitor/                     ← copied here by the build script
+├── Starlink Monitor.exe              (Launcher)
+└── _internal/
+    ├── ...                           (Python runtime + all dependencies)
+    └── frontend/dist/                (React frontend files)
+
+backend/dist/StarLinkMonitor-Setup.exe  (Windows installer, if Inno Setup ran)
 ```
 
 ## Configuration
@@ -150,7 +150,7 @@ Double-click `Starlink Monitor.exe` in the `dist/` folder
 Run `StarLinkMonitor-Setup.exe` and follow the wizard
 
 ### Options
-- **Open Dashboard** — Opens browser to `http://localhost:8000`
+- **Open Dashboard** — Opens browser to `http://localhost:8001`
 - **Quit** — Stops the server and exits
 
 ## System Tray Features
@@ -188,13 +188,13 @@ npm run build
 cd ..\backend
 ```
 
-### Port 8000 already in use
-The application will fail to start if port 8000 is in use.
+### Port 8001 already in use
+The application will fail to start if port 8001 is in use.
 Either:
-1. Stop the other application using port 8000
+1. Stop the other application using port 8001
 2. Modify the port in `backend/tray.py`:
    ```python
-   port=8001  # Change from 8000
+   port=8002  # Change from 8001
    ```
 
 ## Distribution

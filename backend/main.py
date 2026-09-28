@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import pathlib
@@ -5,6 +6,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 
 from dish import telemetry, store
 from routers.health      import router as health_router
@@ -15,6 +17,7 @@ from routers.diagnostics import router as diagnostics_router
 from routers.control     import router as control_router
 from routers.location    import router as location_router
 from routers.service     import router as service_router
+from routers.speedtest   import router as speedtest_router
 from routers.debug       import router as debug_router
 from routers.ws          import router as ws_router
 
@@ -46,7 +49,8 @@ async def lifespan(app: FastAPI):
         print("─" * 60 + "\n", flush=True)
 
     store.init()
-    store.prune()
+    # Prune old rows in a thread so the event loop stays free during startup
+    asyncio.get_event_loop().run_in_executor(None, store.prune)
     logger.info("Starting telemetry polling -> %s", DISH_ADDRESS)
     await telemetry.start_polling(DISH_ADDRESS)
     yield
@@ -62,6 +66,7 @@ app = FastAPI(
     redoc_url=None if SERVE_STATIC else "/redoc",
 )
 
+app.add_middleware(GZipMiddleware, minimum_size=512)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -79,6 +84,7 @@ app.include_router(diagnostics_router, prefix="/api", tags=["diagnostics"])
 app.include_router(control_router,     prefix="/api", tags=["control"])
 app.include_router(location_router,    prefix="/api", tags=["location"])
 app.include_router(service_router,     prefix="/api", tags=["service"])
+app.include_router(speedtest_router,   prefix="/api", tags=["speedtest"])
 if not SERVE_STATIC:
     app.include_router(debug_router,   prefix="/api", tags=["debug"])
 app.include_router(ws_router,          tags=["websocket"])

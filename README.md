@@ -8,8 +8,6 @@ A local web dashboard that connects to a Starlink dish via its built-in gRPC
 API and displays live telemetry, obstruction maps, connected devices, and alert
 history — no cloud account required.
 
-![Dashboard preview — dark Starlink-branded UI with throughput/latency charts, obstruction map, and stat cards]
-
 ---
 
 ## Requirements
@@ -21,10 +19,9 @@ history — no cloud account required.
 | npm | 9+ | bundled with Node |
 | Network | — | Must be on the same LAN as the dish |
 
-The dash talks to the dish at **`192.168.100.1:9200`** (no authentication).
-This is the standard Starlink local gateway — you must be connected to the
-dish's local network (via ethernet, or through a router that connects to the
-dish).
+The dashboard talks to the dish at **`192.168.100.1:9200`** (no authentication
+required). You must be connected to the dish's local network — either directly
+via Ethernet, or through a router that connects to the dish.
 
 ---
 
@@ -32,23 +29,23 @@ dish).
 
 ### Windows (Standalone .exe — Easiest)
 
-Download and run the pre-built Windows application — no Python installation needed!
+Build a self-contained Windows application with a system tray icon — no Python
+or Node installation needed after the build.
 
 ```powershell
 git clone <this-repo> starlink-dashboard
 cd starlink-dashboard
-.\build-windows.bat
+.\build-windows.ps1
 ```
 
-Run the built executable:
-```
-backend\dist\Starlink Monitor\Starlink Monitor.exe
-```
+The build script compiles the frontend, packages everything with PyInstaller,
+and copies the result to `Starlink Monitor\` in the repo root. Double-click
+`Starlink Monitor\Starlink Monitor.exe` to launch.
 
-The dashboard will automatically open in your browser at **http://localhost:8001**.
+The dashboard opens automatically in your browser at `http://localhost:8001`.
 
-**Or build manually:**
-- See [WINDOWS_BUILD.md](WINDOWS_BUILD.md) for detailed build instructions and troubleshooting
+> See [WINDOWS_BUILD.md](WINDOWS_BUILD.md) for detailed build instructions,
+> `-SkipFrontend` / `-SkipInstaller` flags, and troubleshooting.
 
 ### Linux / macOS / Raspberry Pi
 
@@ -59,10 +56,10 @@ chmod +x start.sh
 ./start.sh
 ```
 
-Open **http://localhost:5173** in your browser.  
-The backend API is at **http://localhost:8000/docs**.
+Open `http://localhost:5173` in your browser.  
+The backend API (Swagger docs) is at `http://localhost:8000/docs`.
 
-### Windows
+### Windows (dev / production mode)
 
 ```powershell
 git clone <this-repo> starlink-dashboard
@@ -73,7 +70,8 @@ cd starlink-dashboard
 Open **http://localhost:5173** in your browser.
 
 > **First-time only — execution policy**  
-> If you see "running scripts is disabled", run this once in an elevated PowerShell window, then retry:
+> If you see "running scripts is disabled", run this once in an elevated
+> PowerShell window, then retry:
 > ```powershell
 > Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
 > ```
@@ -100,14 +98,13 @@ instantly.
 .\start.ps1
 ```
 
-> On Windows, the backend opens in a second console window titled
-> **"Starlink Monitor — Backend"**. Closing or Ctrl+C-ing the Vite window
-> (this window) stops both.
+Dependency installs (pip, npm) are skipped automatically when nothing has
+changed, so repeat runs start in seconds.
 
 ### Production / Raspberry Pi
 
 Builds the React app once, then serves everything from a single FastAPI
-process on `:8000`.  No Node.js needs to stay running after the build.
+process on `:8000`. No Node.js needs to stay running after the build.
 
 ```bash
 # Linux / macOS / Pi
@@ -154,7 +151,7 @@ sudo systemctl enable --now starlink-monitor
 |---|---|---|
 | `DISH_ADDRESS` | `192.168.100.1:9200` | Dish gRPC endpoint |
 | `BACKEND_PORT` | `8000` | FastAPI listen port |
-| `FRONTEND_PORT` | `5173` | Vite dev-server port (dev mode) |
+| `FRONTEND_PORT` | `5173` | Vite dev-server port (dev mode only) |
 | `SERVE_STATIC` | `0` | Set `1` to serve `frontend/dist/` from FastAPI |
 
 **Windows — setting env vars before launching:**
@@ -170,24 +167,33 @@ $env:BACKEND_PORT = '8001'; .\start.ps1 -Prod
 starlink-dashboard/
 ├── start.sh                  # Startup script (Linux / macOS / Pi)
 ├── start.ps1                 # Startup script (Windows PowerShell)
+├── build-windows.ps1         # Build .exe (PowerShell)
+├── build-windows.bat         # Build .exe (Command Prompt)
+├── WINDOWS_BUILD.md          # Windows build guide
 ├── backend/
 │   ├── main.py               # FastAPI app + lifespan
 │   ├── requirements.txt
-│   ├── starlink_grpc.py      # Vendored gRPC client (reflection-based)
+│   ├── tray.py               # Windows system tray entry point
+│   ├── starlink-monitor.spec # PyInstaller spec
 │   ├── dish/
-│   │   ├── client.py         # gRPC channel singleton + reconnect
 │   │   ├── telemetry.py      # Background polling (1 s status, 5 s history)
 │   │   ├── diagnostics.py    # Obstruction map + pointing
 │   │   ├── devices.py        # DHCP clients (Starlink router)
-│   │   ├── wifi.py           # WAN / network details
-│   │   └── alerts.py         # Alert flag parser
+│   │   ├── wifi.py           # WiFi / WAN details (Starlink router)
+│   │   ├── alerts.py         # Alert flag parser
+│   │   ├── store.py          # SQLite history persistence
+│   │   └── client.py         # gRPC channel helper
 │   └── routers/
-│       ├── health.py         # GET /api/health
-│       ├── status.py         # GET /api/status
-│       ├── history.py        # GET /api/history
-│       ├── diagnostics.py    # GET /api/diagnostics
-│       ├── devices.py        # GET /api/devices  GET /api/wan
-│       └── ws.py             # WS  /ws/live
+│       ├── health.py         # GET  /api/health
+│       ├── status.py         # GET  /api/status
+│       ├── history.py        # GET  /api/history
+│       ├── diagnostics.py    # GET  /api/diagnostics
+│       ├── devices.py        # GET  /api/devices  /api/wan  /api/wifi
+│       ├── service.py        # GET  /api/service
+│       ├── location.py       # GET  /api/location
+│       ├── control.py        # POST /api/control/*
+│       ├── speedtest.py      # GET  /api/speedtest/download  POST /api/speedtest/upload
+│       └── ws.py             # WS   /ws/live
 └── frontend/
     ├── vite.config.js        # Dev proxy: /api/* → :8000
     ├── tailwind.config.js    # Brand colour tokens
@@ -196,23 +202,24 @@ starlink-dashboard/
         ├── hooks/
         │   ├── useLiveData.js  # WebSocket hook, 900-pt buffer, auto-reconnect
         │   ├── useApi.js       # REST polling hook
-        │   ├── useAlertLog.js  # Alert history tracking (localStorage)
+        │   ├── useAlertLog.js  # Alert history (localStorage)
         │   └── useSettings.js  # Persistent settings (localStorage)
         ├── components/
         │   ├── Layout/         # Sidebar, Header
-        │   ├── Cards/          # StatCard, AlertBanner
-        │   ├── Charts/         # ThroughputChart, LatencyChart (Recharts)
+        │   ├── Charts/         # ThroughputChart, LatencyChart, PowerChart
         │   ├── ObstructionMap.jsx
-        │   ├── SatelliteTracker.jsx
         │   ├── TempGauge.jsx
         │   ├── DeviceTable.jsx
-        │   └── WanDetails.jsx
+        │   ├── WanDetails.jsx
+        │   ├── SpeedTest.jsx
+        │   └── NoDishPanel.jsx
         └── pages/
-            ├── Dashboard.jsx   # Stat cards, charts, obstruction map
-            ├── Diagnostics.jsx # Large map, sat tracker, temp gauges
-            ├── Devices.jsx     # Device table + WAN details
-            ├── Alerts.jsx      # Active alerts + history log
-            └── Settings.jsx    # Dish IP, poll interval, °C/°F
+            ├── Dashboard.jsx   # Stat cards, charts, obstruction map, WAN details
+            ├── Diagnostics.jsx # Full obstruction map, temp gauges, GPS / SNR status
+            ├── SkyView.jsx     # Sky view / satellite tracker
+            ├── Devices.jsx     # Connected devices table + WAN details
+            ├── Alerts.jsx      # Active alerts + persistent history log
+            └── Settings.jsx    # Dish address, theme, WiFi info, dish controls
 ```
 
 ---
@@ -221,39 +228,54 @@ starlink-dashboard/
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/api/health` | Backend alive + dish reachability check |
+| GET | `/api/health` | Backend alive + dish reachability |
 | GET | `/api/status` | Current dish status snapshot |
 | GET | `/api/history?last=900` | Rolling history buffer (max 900 points, 1 s each) |
-| GET | `/api/diagnostics` | Obstruction map + pointing + temperatures |
-| GET | `/api/devices` | Connected clients (requires Starlink router) |
+| GET | `/api/diagnostics` | Obstruction map + pointing |
+| GET | `/api/service` | Firmware, hardware version, account service info |
+| GET | `/api/location` | GPS coordinates (requires Starlink app auth on some models) |
+| GET | `/api/devices` | Connected DHCP clients (requires Starlink router) |
 | GET | `/api/wan` | WAN / network details (requires Starlink router) |
+| GET | `/api/wifi` | WiFi network info, read-only (requires Starlink router) |
+| GET | `/api/speedtest/download` | Run a local download speed test |
+| POST | `/api/speedtest/upload` | Run a local upload speed test |
+| POST | `/api/control/reboot` | Reboot the dish |
+| POST | `/api/control/stow` | Stow the dish |
+| POST | `/api/control/unstow` | Unstow the dish |
+| POST | `/api/control/gps/enable` | Enable GPS location reporting on the dish |
+| POST | `/api/control/gps/disable` | Disable GPS location reporting on the dish |
+| POST | `/api/control/restart-backend` | Restart the backend server process |
 | WS | `/ws/live` | 1-second telemetry broadcast |
 
 ### WebSocket message shape
 
 ```json
 {
-  "timestamp":             1234567890,
-  "download_mbps":         187.4,
-  "upload_mbps":           23.1,
-  "latency_ms":            28.0,
-  "drop_rate_pct":         0.4,
-  "uptime_s":              86400,
-  "state":                 "CONNECTED",
-  "is_obstructed":         false,
+  "timestamp":               1234567890,
+  "download_mbps":           187.4,
+  "upload_mbps":             23.1,
+  "latency_ms":              28.0,
+  "drop_rate_pct":           0.4,
+  "uptime_s":                86400,
+  "state":                   "CONNECTED",
+  "is_obstructed":           false,
   "fraction_obstructed_pct": 1.2,
-  "snr_above_floor":       true,
-  "dish_temp_c":           43.0,
-  "board_temp_c":          null,
-  "direction_azimuth":     45.2,
-  "direction_elevation":   67.8,
-  "gps_ready":             true,
-  "gps_sats":              8,
-  "software_version":      "...",
-  "hardware_version":      "...",
-  "alerts":                []
+  "snr_above_floor":         true,
+  "dish_temp_c":             43.0,
+  "board_temp_c":            null,
+  "direction_azimuth":       45.2,
+  "direction_elevation":     67.8,
+  "gps_ready":               true,
+  "gps_sats":                8,
+  "gps_enabled":             true,
+  "software_version":        "...",
+  "hardware_version":        "...",
+  "alerts":                  []
 }
 ```
+
+`board_temp_c` is `null` on the Starlink Mini (the dish does not report a
+separate board temperature).
 
 ---
 
@@ -261,18 +283,19 @@ starlink-dashboard/
 
 | Page | Route | What it shows |
 |---|---|---|
-| Dashboard | `/` | 6 stat cards, 15-min throughput + latency charts, compact obstruction map, WAN details |
-| Diagnostics | `/diagnostics` | Full 260 px obstruction map, satellite tracker with trail, temperature arc gauges, GPS / SNR status |
-| Devices | `/devices` | Sortable/filterable DHCP client table with OUI-based device icons, WAN details sidebar |
-| Alerts | `/alerts` | Active alert cards + persistent history log with start time, duration, resolved badge |
-| Settings | `/settings` | Dish IP, test connection, °C/°F toggle, poll interval |
+| Dashboard | `/` | Stat cards, throughput / latency / power charts, obstruction map, speed test |
+| Diagnostics | `/diagnostics` | Full obstruction map, temperature arc gauges, GPS / SNR status |
+| Sky View | `/skyview` | Satellite sky view and tracker |
+| Devices | `/devices` | Sortable / filterable connected-device table with OUI-based icons, WAN details |
+| Alerts | `/alerts` | Active alert cards + persistent history log (start time, duration, resolved badge) |
+| Settings | `/settings` | Dish address + connection test, dark/light theme, WiFi info (read-only), dish controls |
 
 ---
 
 ## Connected devices and WAN details
 
 Device and WAN data comes from the **Starlink mesh router** (a separate device),
-not the dish itself.  These pages show "no data" if you:
+not the dish itself. These sections show "no data" if you:
 
 - Use the dish in bypass mode with your own router, or
 - Have a Gen 1 dish without a Starlink router
@@ -280,12 +303,17 @@ not the dish itself.  These pages show "no data" if you:
 If you have a Starlink router, it is typically at `192.168.1.1:9000`.
 The backend probes this address automatically.
 
+**WiFi settings are read-only.** The Starlink router uses a cryptographic
+challenge-response (ECDSA) for all write operations that only the official
+Starlink app can authenticate. SSID, password, and band changes must be made
+through the Starlink app.
+
 ---
 
 ## Troubleshooting
 
 **`/api/health` returns `dish_reachable: false`**
-- Confirm you're on the Starlink local network (ping `192.168.100.1`)
+- Confirm you're on the Starlink local network (`ping 192.168.100.1`)
 - Check that no firewall blocks port 9200
 
 **Charts show no data**
@@ -294,7 +322,12 @@ The backend probes this address automatically.
 
 **"No signal data" on the obstruction map**
 - The map endpoint makes a separate gRPC call with a 4 s timeout; if the dish
-  is slow to respond, the map returns null and the dashboard shows the placeholder
+  is slow to respond, the map returns null and the dashboard shows a placeholder
+
+**Devices / WAN / WiFi panels show no data**
+
+- These require the Starlink mesh router at `192.168.1.1:9000`
+- They will be empty if you use the dish in bypass mode or with a third-party router
 
 **Raspberry Pi: `pip install` fails on `grpcio`**
 - `grpcio` has arm64 wheels on PyPI for Python 3.11+; ensure you're not on
@@ -302,10 +335,12 @@ The backend probes this address automatically.
 - If needed: `sudo apt install python3-grpcio` before running `start.sh`
 
 **Port already in use**
+
 ```bash
 # Linux / macOS / Pi
 BACKEND_PORT=8001 FRONTEND_PORT=5174 ./start.sh
 ```
+
 ```powershell
 # Windows
 $env:BACKEND_PORT = '8001'; $env:FRONTEND_PORT = '5174'; .\start.ps1
@@ -317,9 +352,12 @@ Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
 ```
 
 **Windows: `pip install grpcio` fails**  
-- Ensure you have the [Visual C++ Redistributable](https://aka.ms/vs/17/release/vc_redist.x64.exe) installed.  
-- Or install a pre-built wheel: `pip install grpcio --only-binary=:all:`
+Ensure the [Visual C++ Redistributable](https://aka.ms/vs/17/release/vc_redist.x64.exe)
+is installed, then retry with:
+```powershell
+pip install grpcio --only-binary=:all:
+```
 
-**Windows: backend window closes immediately**  
-Open a terminal, `cd` into the repo, and run `.\start.ps1` manually so you
-can read any error messages before the window closes.
+**Windows .exe: backend window closes immediately**  
+Open a terminal, `cd` into the repo root, and run `.\build-windows.ps1` manually
+so you can read any error messages before the window closes.

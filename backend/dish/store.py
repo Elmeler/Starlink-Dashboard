@@ -36,6 +36,8 @@ def init(db_path: Optional[pathlib.Path] = None) -> None:
         _DB_PATH = db_path
     _conn = sqlite3.connect(str(_DB_PATH), check_same_thread=False)
     _conn.execute("PRAGMA journal_mode=WAL")
+    # Checkpoint automatically once the WAL reaches ~1000 pages (~4 MB)
+    _conn.execute("PRAGMA wal_autocheckpoint=1000")
     _conn.execute(_DDL)
     _conn.commit()
     logger.info("History DB ready at %s", _DB_PATH)
@@ -104,7 +106,7 @@ def read_range(hours: int = 1, target_points: int = 720) -> list:
 
 
 def prune(keep_days: int = 7) -> int:
-    """Delete rows older than keep_days. Returns number of deleted rows."""
+    """Delete rows older than keep_days and checkpoint the WAL. Returns deleted row count."""
     if _conn is None:
         return 0
     cutoff = int(time.time()) - keep_days * 86400
@@ -112,6 +114,8 @@ def prune(keep_days: int = 7) -> int:
         cur = _conn.execute("DELETE FROM history WHERE timestamp < ?", (cutoff,))
         deleted = cur.rowcount
         _conn.commit()
+        if deleted:
+            _conn.execute("PRAGMA wal_checkpoint(PASSIVE)")
     if deleted:
         logger.info("Pruned %d history rows older than %d days", deleted, keep_days)
     return deleted

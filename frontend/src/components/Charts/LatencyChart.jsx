@@ -3,7 +3,6 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts'
 
-const GRID     = '#1e2330'
 const LAT_CLR  = '#a78bfa'
 const DROP_CLR = '#f59e0b'
 
@@ -18,9 +17,9 @@ function CustomTooltip({ active, payload, label }) {
   return (
     <div
       className="rounded px-2 py-1.5 text-xs"
-      style={{ background: '#0d1017', border: '1px solid #1e2330' }}
+      style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
     >
-      <p style={{ color: '#4a5568', marginBottom: 4 }}>{fmtTime(label)}</p>
+      <p style={{ color: 'var(--text-4)', marginBottom: 4 }}>{fmtTime(label)}</p>
       {payload.map(p => (
         <p key={p.dataKey} style={{ color: p.color }}>
           {p.name}: {p.value != null ? p.value.toFixed(p.dataKey === 'drop_rate_pct' ? 2 : 0) : '—'}
@@ -31,50 +30,52 @@ function CustomTooltip({ active, payload, label }) {
   )
 }
 
-export default function LatencyChart({ data = [] }) {
+export default function LatencyChart({ data = [], height = 120 }) {
+  const latest  = data.at(-1)
+  const latNow  = latest?.latency_ms    ?? null
+  const dropNow = latest?.drop_rate_pct ?? null
+
   return (
     <div>
       <div className="flex items-center gap-4 mb-2">
         <span className="label">Latency &amp; Drop rate</span>
         <span className="flex items-center gap-1 text-xs" style={{ color: LAT_CLR }}>
           <span className="inline-block w-3 h-0.5 rounded" style={{ background: LAT_CLR }} />
-          Latency
+          {latNow != null ? `${Math.round(latNow)} ms` : 'Latency'}
         </span>
         <span className="flex items-center gap-1 text-xs" style={{ color: DROP_CLR }}>
           <span className="inline-block w-3 h-0.5 rounded" style={{ background: DROP_CLR }} />
-          Drop rate
+          {dropNow != null ? `${dropNow.toFixed(2)} % drop` : 'Drop rate'}
         </span>
       </div>
 
-      <ResponsiveContainer width="100%" height={120}>
-        <LineChart data={data} margin={{ top: 4, right: 28, bottom: 0, left: -20 }}>
-          <CartesianGrid stroke={GRID} vertical={false} />
+      <ResponsiveContainer width="100%" height={height}>
+        <LineChart data={data} margin={{ top: 4, right: 32, bottom: 0, left: 4 }}>
+          <CartesianGrid stroke="var(--border)" vertical={false} />
 
           <XAxis
             dataKey="timestamp"
             tickFormatter={fmtTime}
-            tick={{ fontSize: 9, fill: '#4a5568' }}
+            tick={{ fontSize: 9, fill: 'var(--text-4)' }}
             tickLine={false}
             axisLine={false}
             interval="preserveStartEnd"
             minTickGap={60}
           />
 
-          {/* Left Y axis: latency ms */}
           <YAxis
             yAxisId="lat"
-            tick={{ fontSize: 9, fill: '#4a5568' }}
+            tick={{ fontSize: 9, fill: 'var(--text-4)' }}
             tickLine={false}
             axisLine={false}
             tickFormatter={v => `${v}`}
-            width={28}
+            width={36}
           />
 
-          {/* Right Y axis: drop rate % */}
           <YAxis
             yAxisId="drop"
             orientation="right"
-            tick={{ fontSize: 9, fill: '#4a5568' }}
+            tick={{ fontSize: 9, fill: 'var(--text-4)' }}
             tickLine={false}
             axisLine={false}
             tickFormatter={v => `${v}%`}

@@ -16,8 +16,9 @@ export function useLiveData() {
   const [connected, setConnected]     = useState(false)
   const [dishConnected, setDishConn]  = useState(false)
   const [error, setError]             = useState(null)
-  const wsRef    = useRef(null)
-  const timerRef = useRef(null)
+  const wsRef      = useRef(null)
+  const timerRef   = useRef(null)
+  const retriesRef = useRef(0)   // tracks reconnect attempts; survives WS object replacement
 
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return
@@ -26,6 +27,7 @@ export function useLiveData() {
     wsRef.current = ws
 
     ws.onopen = () => {
+      retriesRef.current = 0   // successful connection — reset backoff
       setConnected(true)
       setError(null)
     }
@@ -59,11 +61,9 @@ export function useLiveData() {
       setConnected(false)
       setDishConn(false)
       // exponential backoff reconnect, capped at 10s
-      timerRef.current = setTimeout(connect, Math.min(
-        1000 * (2 ** Math.min((wsRef.current?._retries ?? 0), 4)),
-        10_000
-      ))
-      if (wsRef.current) wsRef.current._retries = (wsRef.current._retries ?? 0) + 1
+      const delay = Math.min(1000 * (2 ** Math.min(retriesRef.current, 4)), 10_000)
+      retriesRef.current++
+      timerRef.current = setTimeout(connect, delay)
     }
   }, [])
 

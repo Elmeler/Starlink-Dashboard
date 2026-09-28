@@ -1,15 +1,18 @@
 import { useState, useCallback } from 'react'
-import { IconPlugConnected, IconPlugConnectedX, IconRefresh, IconRadar, IconPower, IconAnchor, IconServer } from '@tabler/icons-react'
+import {
+  IconPlugConnected, IconPlugConnectedX, IconRefresh,
+  IconRadar, IconPower, IconAnchor, IconServer,
+} from '@tabler/icons-react'
 import { useLive } from '../App'
 import { useApi }  from '../hooks/useApi'
 
-// ── sub-components ────────────────────────────────────────────────────────────
+// ── shared primitives ─────────────────────────────────────────────────────────
 
 function Card({ title, children }) {
   return (
     <div
       className="rounded-lg p-4 space-y-4"
-      style={{ background: '#0d1017', border: '1px solid #1e2330' }}
+      style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
     >
       <p className="label">{title}</p>
       {children}
@@ -21,27 +24,19 @@ function FieldRow({ label, hint, children }) {
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-baseline justify-between">
-        <span style={{ fontSize: 12, color: '#e2e8f0' }}>{label}</span>
-        {hint && <span style={{ fontSize: 10, color: '#2a3344' }}>{hint}</span>}
+        <span style={{ fontSize: 12, color: 'var(--text-1)' }}>{label}</span>
+        {hint && <span style={{ fontSize: 10, color: 'var(--text-5)' }}>{hint}</span>}
       </div>
       {children}
     </div>
   )
 }
 
-// ── component ─────────────────────────────────────────────────────────────────
-
-const POLL_OPTIONS = [1, 2, 5, 10]
-
-/**
- * Two-step confirm button. First click → arms (shows warning text).
- * Second click within 4 s → fires action. Auto-resets if not confirmed.
- */
 function ConfirmButton({ label, description, icon: Icon, accentBg, accentColor, accentBorder, onConfirm }) {
-  const [armed, setArmed]     = useState(false)
-  const [busy,  setBusy]      = useState(false)
-  const [result, setResult]   = useState(null)   // null | 'ok' | 'err'
-  const [errMsg, setErrMsg]   = useState('')
+  const [armed,  setArmed]  = useState(false)
+  const [busy,   setBusy]   = useState(false)
+  const [result, setResult] = useState(null)
+  const [errMsg, setErrMsg] = useState('')
 
   const arm = useCallback(() => {
     setArmed(true)
@@ -78,9 +73,9 @@ function ConfirmButton({ label, description, icon: Icon, accentBg, accentColor, 
           className="flex items-center gap-1.5 rounded px-3 py-1.5 font-medium transition-all disabled:opacity-50"
           style={{
             fontSize: 12,
-            background: armed ? accentBg    : '#111520',
-            color:      armed ? accentColor : '#4a5568',
-            border:     `1px solid ${armed ? accentBorder : '#1e2330'}`,
+            background: armed ? accentBg    : 'var(--bg-input)',
+            color:      armed ? accentColor : 'var(--text-4)',
+            border:     `1px solid ${armed ? accentBorder : 'var(--border)'}`,
             whiteSpace: 'nowrap',
             minWidth: 90,
           }}
@@ -90,54 +85,12 @@ function ConfirmButton({ label, description, icon: Icon, accentBg, accentColor, 
             : <Icon size={13} stroke={2} />}
           {armed ? 'Confirm?' : label}
         </button>
-        <span style={{ fontSize: 10, color: '#2a3344' }}>{description}</span>
+        <span style={{ fontSize: 10, color: 'var(--text-5)' }}>{description}</span>
       </div>
-      {result === 'ok'  && <p style={{ fontSize: 10, color: '#22c55e' }}>Done</p>}
-      {result === 'err' && <p style={{ fontSize: 10, color: '#ef4444' }}>{errMsg}</p>}
+      {result === 'ok'  && <p style={{ fontSize: 10, color: 'var(--good)' }}>Done</p>}
+      {result === 'err' && <p style={{ fontSize: 10, color: 'var(--bad)' }}>{errMsg}</p>}
     </div>
   )
-}
-
-function fmtUptime(s) {
-  if (s == null) return '—'
-  const d = Math.floor(s / 86400)
-  const h = Math.floor((s % 86400) / 3600)
-  const m = Math.floor((s % 3600) / 60)
-  if (d > 0) return `${d}d ${h}h`
-  if (h > 0) return `${h}h ${m}m`
-  return `${m}m`
-}
-
-// ── service enum → friendly label ─────────────────────────────────────────────
-
-const SERVICE_CLASS = {
-  UNKNOWN:     'Unknown',
-  BEST_EFFORT: 'Best Effort',
-  BULK:        'Standard (Residential)',
-  PRIORITY:    'Priority (Business/RV)',
-}
-
-const MOBILITY = {
-  STATIONARY: 'Stationary (Fixed home)',
-  NOMADIC:    'Nomadic (Roam)',
-  MOBILE:     'Mobile (In-motion)',
-  AVIATION:   'Aviation',
-}
-
-const SW_STATE = {
-  IDLE:                 'Up to date',
-  FETCHING:             'Downloading update…',
-  PRE_REBOOT_CLEANUP:   'Preparing to install…',
-  REBOOT_REQUIRED:      'Reboot required to install',
-  UP_TO_DATE:           'Up to date',
-  ERROR:                'Update error',
-}
-
-function friendly(map, key) {
-  if (!key) return '—'
-  // Strip common proto prefixes (e.g. "CLASS_OF_SERVICE_BULK" → look up "BULK")
-  const short = key.replace(/^(CLASS_OF_SERVICE_|MOBILITY_CLASS_|SOFTWARE_UPDATE_STATE_)/, '')
-  return map[short] ?? map[key] ?? key.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
 }
 
 function fmtTs(ts) {
@@ -145,28 +98,124 @@ function fmtTs(ts) {
   return new Date(ts * 1000).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
 }
 
+// ── WiFi settings ─────────────────────────────────────────────────────────────
+
+function WifiNetworkRow({ net }) {
+  return (
+    <div className="rounded-lg p-3" style={{ background: 'var(--bg-inner)', border: '1px solid var(--border)' }}>
+      <div className="flex items-center gap-3">
+        <span style={{ fontSize: 10, color: 'var(--text-4)', width: 52, flexShrink: 0 }}>{net.band}</span>
+        <span style={{ fontSize: 12, color: 'var(--text-1)', flex: 1 }}>{net.ssid}</span>
+        <span
+          className="rounded-full px-2 py-0.5 font-medium"
+          style={{
+            fontSize: 10,
+            background: net.enabled ? 'var(--good-bg)' : 'var(--bg-input)',
+            color:      net.enabled ? 'var(--good)'    : 'var(--text-5)',
+            border:     `1px solid ${net.enabled ? 'var(--good-border)' : 'var(--border)'}`,
+          }}
+        >
+          {net.enabled ? 'On' : 'Off'}
+        </span>
+        <span
+          className="rounded px-2 py-0.5"
+          style={{
+            fontSize: 10,
+            background: 'var(--bg-input)',
+            color: 'var(--text-4)',
+            border: '1px solid var(--border)',
+          }}
+        >
+          {net.auth_type}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function WifiCard() {
+  const { data: wifiData } = useApi('/api/wifi', 30_000)
+
+  if (!wifiData) return (
+    <Card title="WiFi">
+      <p style={{ fontSize: 11, color: 'var(--text-5)' }}>Requires Starlink router on the local network</p>
+    </Card>
+  )
+  if (!wifiData.networks?.length) return (
+    <Card title="WiFi">
+      <p style={{ fontSize: 11, color: 'var(--text-5)' }}>No WiFi networks found</p>
+    </Card>
+  )
+
+  return (
+    <Card title="WiFi">
+      <div className="space-y-2">
+        {wifiData.networks.map(net => (
+          <WifiNetworkRow key={net.iface} net={net} />
+        ))}
+      </div>
+      <div
+        className="rounded-lg px-3 py-2.5 space-y-1"
+        style={{ background: 'var(--warn-bg)', border: '1px solid var(--warn-border)' }}
+      >
+        <p style={{ fontSize: 11, color: 'var(--warn)', fontWeight: 500 }}>
+          WiFi changes require the Starlink app
+        </p>
+        <p style={{ fontSize: 10, color: 'var(--warn)', opacity: 0.8, lineHeight: 1.5 }}>
+          The router enforces write operations via cryptographic authentication only the official app can produce.
+          To change SSID, password, or band settings, use the Starlink app → WiFi settings.
+        </p>
+      </div>
+    </Card>
+  )
+}
+
+// ── page ──────────────────────────────────────────────────────────────────────
+
 export default function Settings() {
   const { settings, updateSetting, connected, dishConnected, data } = useLive()
+  const hasActuators = data?.has_actuators
   const { data: svc } = useApi('/api/service', 60_000)
-  const wsUrl = `ws://${window.location.host}/ws/live`
 
-  // Local state for the IP field (controlled while editing)
+  // GPS
+  const [gpsBusy,   setGpsBusy]   = useState(false)
+  const [gpsResult, setGpsResult] = useState(null)
+  const [gpsErr,    setGpsErr]    = useState('')
+
+  const toggleGps = useCallback(async (enable) => {
+    setGpsBusy(true)
+    setGpsResult(null)
+    try {
+      const r    = await fetch(`/api/control/gps/${enable ? 'enable' : 'disable'}`, { method: 'POST' })
+      const body = await r.json().catch(() => ({}))
+      if (!r.ok) throw new Error(body.detail ?? `HTTP ${r.status}`)
+      setGpsResult('ok')
+    } catch (e) {
+      setGpsResult('err')
+      setGpsErr(e.message)
+    } finally {
+      setGpsBusy(false)
+      setTimeout(() => setGpsResult(null), 5000)
+    }
+  }, [])
+
+  // Dish address
   const [ipDraft,     setIpDraft]     = useState(settings.dishAddress)
-  const [testStatus,  setTestStatus]  = useState(null)   // null | 'testing' | 'ok' | 'fail'
+  const [testStatus,  setTestStatus]  = useState(null)
   const [testMessage, setTestMessage] = useState('')
 
   async function testConnection() {
     setTestStatus('testing')
     setTestMessage('')
     try {
-      const r   = await fetch('/api/health', { signal: AbortSignal.timeout(5000) })
-      const data = await r.json()
-      if (data.dish_reachable) {
+      const r    = await fetch('/api/health?live=true', { signal: AbortSignal.timeout(5000) })
+      const body = await r.json()
+      if (body.dish_reachable) {
         setTestStatus('ok')
-        setTestMessage(`Dish reachable at ${data.dish_address}`)
+        setTestMessage(`Dish reachable at ${body.dish_address}`)
       } else {
         setTestStatus('fail')
-        setTestMessage(data.error ?? 'Dish not reachable')
+        setTestMessage(body.error ?? 'Dish not reachable')
       }
     } catch (err) {
       setTestStatus('fail')
@@ -178,21 +227,18 @@ export default function Settings() {
     if (ipDraft.trim()) updateSetting('dishAddress', ipDraft.trim())
   }
 
-  const statusColor = {
-    ok:      '#22c55e',
-    fail:    '#ef4444',
-    testing: '#f59e0b',
-  }[testStatus] ?? 'transparent'
+  const testColor = testStatus === 'ok' ? 'var(--good)' : testStatus === 'fail' ? 'var(--bad)' : testStatus === 'testing' ? 'var(--warn)' : 'transparent'
 
   return (
-    <div className="space-y-3 max-w-lg">
+    <div className="max-w-4xl">
+      <div className="grid gap-3 items-start" style={{ gridTemplateColumns: '1fr 1fr' }}>
+
+      {/* ── Left column ── */}
+      <div className="space-y-3">
 
       {/* ── Connection ── */}
       <Card title="Connection">
-        <FieldRow
-          label="Dish address"
-          hint="host:port — changing requires app reload"
-        >
+        <FieldRow label="Dish address" hint="host:port">
           <div className="flex gap-2">
             <input
               type="text"
@@ -201,19 +247,14 @@ export default function Settings() {
               onBlur={saveIp}
               onKeyDown={e => e.key === 'Enter' && saveIp()}
               className="flex-1 rounded px-3 py-1.5 mono outline-none"
-              style={{
-                fontSize: 12,
-                background: '#111520',
-                border: '1px solid #1e2330',
-                color: '#e2e8f0',
-              }}
+              style={{ fontSize: 12, background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-1)' }}
               spellCheck={false}
             />
             <button
               onClick={testConnection}
               disabled={testStatus === 'testing'}
               className="flex items-center gap-1.5 rounded px-3 py-1.5 font-medium transition-opacity disabled:opacity-50"
-              style={{ fontSize: 12, background: '#0a2d6e', color: '#4d9fff', border: '1px solid #1a4a9e', whiteSpace: 'nowrap' }}
+              style={{ fontSize: 12, background: 'var(--accent-bg)', color: 'var(--accent)', border: '1px solid var(--accent-border)', whiteSpace: 'nowrap' }}
             >
               {testStatus === 'testing'
                 ? <IconRefresh size={13} stroke={2} className="animate-spin" />
@@ -225,208 +266,80 @@ export default function Settings() {
           {testStatus && testStatus !== 'testing' && (
             <div
               className="flex items-center gap-2 rounded px-3 py-2 mt-1"
-              style={{
-                background: testStatus === 'ok' ? '#0a3320' : '#3b0c0c',
-                border: `1px solid ${statusColor}`,
-              }}
+              style={{ background: testStatus === 'ok' ? 'var(--good-bg)' : 'var(--bad-bg)', border: `1px solid ${testColor}` }}
             >
               {testStatus === 'ok'
-                ? <IconPlugConnected  size={13} stroke={2} style={{ color: '#22c55e', flexShrink: 0 }} />
-                : <IconPlugConnectedX size={13} stroke={2} style={{ color: '#ef4444', flexShrink: 0 }} />}
-              <span style={{ fontSize: 11, color: statusColor }}>{testMessage}</span>
+                ? <IconPlugConnected  size={13} stroke={2} style={{ color: 'var(--good)', flexShrink: 0 }} />
+                : <IconPlugConnectedX size={13} stroke={2} style={{ color: 'var(--bad)',  flexShrink: 0 }} />}
+              <span style={{ fontSize: 11, color: testColor }}>{testMessage}</span>
             </div>
           )}
         </FieldRow>
 
-        {/* Live WS status */}
+        {/* Live status */}
         <div
-          className="rounded-lg p-3 space-y-2"
-          style={{ background: '#0a0c10', border: '1px solid #1e2330' }}
+          className="rounded-lg px-3 py-2.5 flex items-center justify-between"
+          style={{ background: 'var(--bg-inner)', border: '1px solid var(--border)' }}
         >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span
-                className="inline-block rounded-full shrink-0"
-                style={{
-                  width: 7, height: 7,
-                  background: connected ? '#22c55e' : '#4a5568',
-                  boxShadow: connected ? '0 0 5px #22c55e' : 'none',
-                }}
-              />
-              <span style={{ fontSize: 11, color: connected ? '#22c55e' : '#4a5568', fontWeight: 500 }}>
-                WebSocket {connected ? 'connected' : 'disconnected'}
-              </span>
-            </div>
-            {connected && (
-              <span style={{ fontSize: 9, color: '#2a3344', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                live · 1 s
-              </span>
-            )}
+          <div className="flex items-center gap-2">
+            <span style={{
+              width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
+              background: connected ? 'var(--good)' : 'var(--text-4)',
+              boxShadow: connected ? '0 0 5px var(--good)' : 'none',
+            }} />
+            <span style={{ fontSize: 11, color: connected ? 'var(--good)' : 'var(--text-4)', fontWeight: 500 }}>
+              {connected ? 'Live · 1 s' : 'WebSocket disconnected'}
+            </span>
           </div>
-
-          <div className="space-y-1.5">
-            <div className="flex justify-between items-baseline gap-2">
-              <span style={{ fontSize: 10, color: '#2a3344', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Endpoint</span>
-              <code className="mono" style={{ fontSize: 10, color: '#4a5568' }}>{wsUrl}</code>
-            </div>
-            <div className="flex justify-between items-baseline gap-2">
-              <span style={{ fontSize: 10, color: '#2a3344', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Dish gRPC</span>
-              <div className="flex items-center gap-1.5">
-                <span
-                  className="inline-block rounded-full"
-                  style={{
-                    width: 5, height: 5,
-                    background: dishConnected ? '#22c55e' : '#ef4444',
-                    boxShadow: dishConnected ? '0 0 4px #22c55e' : 'none',
-                  }}
-                />
-                <code className="mono" style={{ fontSize: 10, color: dishConnected ? '#22c55e' : '#ef4444' }}>
-                  {settings.dishAddress}
-                </code>
-              </div>
-            </div>
-            {data?.software_version && (
-              <div className="flex justify-between items-baseline gap-2">
-                <span style={{ fontSize: 10, color: '#2a3344', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Firmware</span>
-                <code className="mono" style={{ fontSize: 10, color: '#4a5568' }}>{data.software_version}</code>
-              </div>
-            )}
-            {data?.uptime_s != null && (
-              <div className="flex justify-between items-baseline gap-2">
-                <span style={{ fontSize: 10, color: '#2a3344', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Dish uptime</span>
-                <span style={{ fontSize: 10, color: '#4a5568' }}>{fmtUptime(data.uptime_s)}</span>
-              </div>
-            )}
-            {data?.state && (
-              <div className="flex justify-between items-baseline gap-2">
-                <span style={{ fontSize: 10, color: '#2a3344', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Dish state</span>
-                <span style={{ fontSize: 10, color: data.state === 'CONNECTED' ? '#22c55e' : '#f59e0b' }}>{data.state}</span>
-              </div>
-            )}
+          <div className="flex items-center gap-1.5">
+            <span style={{
+              width: 5, height: 5, borderRadius: '50%',
+              background: dishConnected ? 'var(--good)' : 'var(--bad)',
+            }} />
+            <span style={{ fontSize: 10, color: dishConnected ? 'var(--text-4)' : 'var(--bad)' }}>
+              Dish {dishConnected ? 'reachable' : 'unreachable'}
+            </span>
           </div>
         </div>
       </Card>
 
-      {/* ── Display ── */}
-      <Card title="Display">
-        <FieldRow label="Temperature unit">
-          <div className="flex gap-1">
-            {['C', 'F'].map(unit => (
-              <button
-                key={unit}
-                onClick={() => updateSetting('tempUnit', unit)}
-                className="rounded px-4 py-1.5 font-medium transition-colors"
-                style={{
-                  fontSize: 12,
-                  background: settings.tempUnit === unit ? '#0a2d6e' : '#111520',
-                  color:      settings.tempUnit === unit ? '#4d9fff' : '#4a5568',
-                  border:     `1px solid ${settings.tempUnit === unit ? '#1a4a9e' : '#1e2330'}`,
-                }}
-              >
-                °{unit}
-              </button>
-            ))}
-          </div>
-        </FieldRow>
-
-        <FieldRow label="Theme" hint="Additional themes coming later">
+      {/* ── Controls ── */}
+      <Card title="Controls">
+        {/* Firmware update banners */}
+        {svc?.sw_update_state === 'FETCHING' && (
           <div
-            className="flex items-center gap-2 rounded px-3 py-2"
-            style={{ background: '#111520', border: '1px solid #1e2330', width: 'fit-content' }}
+            className="rounded-lg px-3 py-2 space-y-2"
+            style={{ background: 'var(--info-bg)', border: '1px solid var(--info-border)' }}
           >
-            <span
-              className="inline-block rounded-full"
-              style={{ width: 8, height: 8, background: '#4d9fff' }}
-            />
-            <span style={{ fontSize: 12, color: '#4a5568' }}>Dark (Starlink)</span>
+            <div className="flex items-center justify-between">
+              <p style={{ fontSize: 12, color: 'var(--info)', fontWeight: 500 }}>Downloading firmware update…</p>
+              {svc.sw_update_progress > 0 && (
+                <p style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 600 }}>
+                  {Math.round(svc.sw_update_progress * 100)}%
+                </p>
+              )}
+            </div>
+            {svc.sw_update_progress > 0 && (
+              <div className="rounded-full overflow-hidden" style={{ height: 4, background: 'var(--border)' }}>
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{ width: `${Math.round(svc.sw_update_progress * 100)}%`, background: 'var(--accent)' }}
+                />
+              </div>
+            )}
           </div>
-        </FieldRow>
-      </Card>
+        )}
 
-      {/* ── Polling ── */}
-      <Card title="Polling">
-        <FieldRow
-          label="Diagnostics &amp; device poll interval"
-          hint="WebSocket telemetry is always 1 s"
-        >
-          <div className="flex gap-1 flex-wrap">
-            {POLL_OPTIONS.map(s => (
-              <button
-                key={s}
-                onClick={() => updateSetting('pollIntervalS', s)}
-                className="rounded px-3 py-1.5 font-medium transition-colors"
-                style={{
-                  fontSize: 12,
-                  background: settings.pollIntervalS === s ? '#0a2d6e' : '#111520',
-                  color:      settings.pollIntervalS === s ? '#4d9fff' : '#4a5568',
-                  border:     `1px solid ${settings.pollIntervalS === s ? '#1a4a9e' : '#1e2330'}`,
-                }}
-              >
-                {s}s
-              </button>
-            ))}
-          </div>
-          <p style={{ fontSize: 10, color: '#2a3344' }}>
-            Applies on next page load — currently active: {settings.pollIntervalS}s
-          </p>
-        </FieldRow>
-      </Card>
-
-      {/* ── Dish Controls ── */}
-      <Card title="Dish Controls">
-        <p style={{ fontSize: 11, color: '#4a5568' }}>
-          Actions take effect immediately. Click once to arm, again to confirm.
-        </p>
-        <ConfirmButton
-          label="Reboot"
-          description="Restart the dish — connection drops for ~60 s"
-          icon={IconPower}
-          accentBg="#3b0c0c" accentColor="#ef4444" accentBorder="#7c2d12"
-          onConfirm="/api/control/reboot"
-        />
-        <ConfirmButton
-          label="Stow"
-          description="Move dish to travel position"
-          icon={IconAnchor}
-          accentBg="#3d2800" accentColor="#f59e0b" accentBorder="#78350f"
-          onConfirm="/api/control/stow"
-        />
-        <ConfirmButton
-          label="Unstow"
-          description="Resume normal operation from stow"
-          icon={IconRadar}
-          accentBg="#0a2d6e" accentColor="#4d9fff" accentBorder="#1a4a9e"
-          onConfirm="/api/control/unstow"
-        />
-      </Card>
-
-      {/* ── System ── */}
-      <Card title="System">
-        <p style={{ fontSize: 11, color: '#4a5568' }}>
-          Restart the dashboard backend. The page will reconnect automatically within a few seconds.
-        </p>
-        <ConfirmButton
-          label="Restart backend"
-          description="Re-executes the Python process — clears in-memory history buffer"
-          icon={IconServer}
-          accentBg="#0a2d6e" accentColor="#4d9fff" accentBorder="#1a4a9e"
-          onConfirm="/api/control/restart-backend"
-        />
-      </Card>
-
-      {/* ── Service & Plan ── */}
-      <Card title="Service &amp; Plan">
-        {/* Software update banner */}
         {svc?.sw_update_reboot_required && (
           <div
             className="rounded-lg px-3 py-2 flex items-start gap-2"
-            style={{ background: '#3d2800', border: '1px solid #92400e' }}
+            style={{ background: 'var(--warn-bg)', border: '1px solid var(--warn-border)' }}
           >
-            <span style={{ fontSize: 10, color: '#fbbf24', marginTop: 1 }}>⚠</span>
+            <span style={{ fontSize: 10, color: 'var(--warn)', marginTop: 1 }}>⚠</span>
             <div>
-              <p style={{ fontSize: 12, color: '#fde68a', fontWeight: 500 }}>Software update pending — reboot required</p>
+              <p style={{ fontSize: 12, color: 'var(--warn)', fontWeight: 500 }}>Software update pending — reboot required</p>
               {svc.sw_update_reboot_ts && (
-                <p style={{ fontSize: 10, color: '#d97706', marginTop: 2 }}>
+                <p style={{ fontSize: 10, color: 'var(--warn)', marginTop: 2, opacity: 0.7 }}>
                   Scheduled: {fmtTs(svc.sw_update_reboot_ts)}
                 </p>
               )}
@@ -434,54 +347,81 @@ export default function Settings() {
           </div>
         )}
 
-        <div className="space-y-1.5">
-          {[
-            ['Service class',  friendly(SERVICE_CLASS, svc?.class_of_service)],
-            ['Mobility',       friendly(MOBILITY,       svc?.mobility_class)],
-            ['Country',        svc?.country_code ?? '—'],
-            ['Software',       svc?.sw_update_state
-              ? (SW_STATE[svc.sw_update_state] ?? svc.sw_update_state)
-              : '—'],
-            ['Hardware',       svc?.hardware_version ?? '—'],
-            ['Firmware',       svc?.software_version ?? '—'],
-          ].map(([label, value]) => (
-            <div key={label} className="flex justify-between items-baseline gap-4">
-              <span style={{ fontSize: 10, color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>
-                {label}
-              </span>
-              <span className="mono" style={{ fontSize: 11, color: '#94a3b8', textAlign: 'right' }}>
-                {value}
-              </span>
-            </div>
-          ))}
-        </div>
+        <p style={{ fontSize: 11, color: 'var(--text-4)' }}>
+          Click once to arm, again to confirm.
+        </p>
 
-        {svc && (
-          <p style={{ fontSize: 9, color: '#1e2a3a', marginTop: 4 }}>
-            Polled from dish gRPC every 60 s · account shard {svc.account_shard}
-          </p>
+        <ConfirmButton
+          label="Reboot dish"
+          description="Drops connection for ~60 s"
+          icon={IconPower}
+          accentBg="var(--bad-bg)" accentColor="var(--bad)" accentBorder="var(--bad-border)"
+          onConfirm="/api/control/reboot"
+        />
+        {hasActuators !== false && (
+          <>
+            <ConfirmButton
+              label="Stow"
+              description="Move dish to travel position"
+              icon={IconAnchor}
+              accentBg="var(--warn-bg)" accentColor="var(--warn)" accentBorder="var(--warn-border)"
+              onConfirm="/api/control/stow"
+            />
+            <ConfirmButton
+              label="Unstow"
+              description="Resume normal operation"
+              icon={IconRadar}
+              accentBg="var(--accent-bg)" accentColor="var(--accent)" accentBorder="var(--accent-border)"
+              onConfirm="/api/control/unstow"
+            />
+          </>
         )}
-      </Card>
 
-      {/* ── About ── */}
-      <Card title="About">
-        <div className="space-y-1.5">
-          {[
-            ['Application',  'Starlink Monitor'],
-            ['Version',      '0.2.0'],
-            ['Backend',      'FastAPI + Python 3.12'],
-            ['Frontend',     'React 18 + Vite + Tailwind CSS'],
-            ['Data source',  'Starlink dish gRPC API (192.168.100.1:9200)'],
-          ].map(([label, value]) => (
-            <div key={label} className="flex justify-between items-baseline gap-4">
-              <span style={{ fontSize: 10, color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                {label}
-              </span>
-              <span style={{ fontSize: 11, color: '#4a5568' }}>{value}</span>
-            </div>
-          ))}
+        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 8 }}>
+          <p style={{ fontSize: 10, color: 'var(--text-4)', marginBottom: 6 }}>GPS location reporting</p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => toggleGps(true)}
+              disabled={gpsBusy}
+              className="rounded px-3 py-1.5 font-medium transition-opacity disabled:opacity-40"
+              style={{ fontSize: 12, background: 'var(--accent-bg)', color: 'var(--accent)', border: '1px solid var(--accent-border)' }}
+            >
+              {gpsBusy ? 'Sending…' : 'Enable'}
+            </button>
+            <button
+              onClick={() => toggleGps(false)}
+              disabled={gpsBusy}
+              className="rounded px-3 py-1.5 font-medium transition-opacity disabled:opacity-40"
+              style={{ fontSize: 12, background: 'var(--bg-input)', color: 'var(--text-4)', border: '1px solid var(--border)' }}
+            >
+              Disable
+            </button>
+            {gpsResult === 'ok'  && <span style={{ fontSize: 11, color: 'var(--good)' }}>✓ Done</span>}
+            {gpsResult === 'err' && <span style={{ fontSize: 11, color: 'var(--bad)' }}>✗ {gpsErr}</span>}
+          </div>
+        </div>
+
+        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 4 }}>
+          <ConfirmButton
+            label="Restart backend"
+            description="Re-runs the Python process — clears in-memory history"
+            icon={IconServer}
+            accentBg="var(--accent-bg)" accentColor="var(--accent)" accentBorder="var(--accent-border)"
+            onConfirm="/api/control/restart-backend"
+          />
         </div>
       </Card>
+
+      </div>{/* end left column */}
+
+      {/* ── Right column ── */}
+      <div className="space-y-3">
+
+      {/* ── WiFi ── */}
+      <WifiCard />
+
+      </div>{/* end right column */}
+      </div>{/* end grid */}
     </div>
   )
 }

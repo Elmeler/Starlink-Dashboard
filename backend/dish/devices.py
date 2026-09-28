@@ -5,7 +5,11 @@ Like WAN details, this data lives on the Starlink router (not the dish).
 Returns an empty list when the router is unreachable.
 """
 
+import concurrent.futures
 import logging
+import socket
+
+_dns_pool = concurrent.futures.ThreadPoolExecutor(max_workers=32, thread_name_prefix="dns")
 
 import grpc
 
@@ -40,7 +44,7 @@ def get_connected_devices(router_address: str = ROUTER_ADDRESS) -> list[dict]:
                 return []
 
             clients = getattr(clients_resp, "clients", []) or []
-            return [_parse_client(c) for c in clients]
+            return _resolve_hostnames([_parse_client(c) for c in clients])
 
     except Exception as exc:
         logger.debug("Device list unavailable (no Starlink router?): %s", exc)
@@ -62,13 +66,15 @@ def _parse_client(client) -> dict:
     rx = getattr(client, "rx_stats", None)
     tx = getattr(client, "tx_stats", None)
 
+    is_wired = band == "wired"
     return {
         "hostname":     _str(getattr(client, "name", None)) or "Unknown",
         "mac":          _str(getattr(client, "mac_address", None)),
         "ip":           _str(getattr(client, "ip_address", None)),
         "band":         band,
-        "signal_dbm":   _safe_float(signal),
-        "snr":          _safe_float(getattr(client, "snr", None)),
+        # WiFi-only metrics — null for wired connections
+        "signal_dbm":   None if is_wired else _safe_float(signal),
+        "snr":          None if is_wired else _safe_float(getattr(client, "snr", None)),
         "lease_expiry": lease,
         "active":       bool(getattr(client, "active", False)),
         "rx_mbps":      _safe_float(getattr(rx, "rate_mbps_last_15s", None)),
@@ -76,6 +82,34 @@ def _parse_client(client) -> dict:
         "upload_mb":    _safe_float(getattr(client, "upload_mb",   None)),
         "download_mb":  _safe_float(getattr(client, "download_mb", None)),
     }
+
+
+def _resolve_hostnames(devices: list[dict], timeout: float = 0.4) -> list[dict]:
+    """Reverse-DNS lookup for devices whose hostname is still 'Unknown'.
+    Runs lookups in parallel; gives up after `timeout` seconds."""
+    candidates = [
+        (i, d["ip"]) for i, d in enumerate(devices)
+        if d.get("ip") and d.get("hostname") == "Unknown"
+    ]
+    if not candidates:
+        return devices
+
+    def lookup(ip: str) -> str | None:
+        try:
+            name, _, _ = socket.gethostbyaddr(ip)
+            return name
+        except OSError:
+            return None
+
+    fmap = {_dns_pool.submit(lookup, ip): i for i, ip in candidates}
+    done, _ = concurrent.futures.wait(fmap, timeout=timeout)
+    for fut in done:
+        idx = fmap[fut]
+        name = fut.result()
+        if name:
+            devices[idx] = {**devices[idx], "hostname": name}
+
+    return devices
 
 
 def _safe_float(value) -> float | None:

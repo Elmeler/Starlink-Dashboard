@@ -1,228 +1,64 @@
-import { useMemo, useState, useCallback } from 'react'
-import { useLive }       from '../App'
-import { useApi }        from '../hooks/useApi'
-import ObstructionMap    from '../components/ObstructionMap'
-import SatelliteTracker  from '../components/SatelliteTracker'
-import TempGauge         from '../components/TempGauge'
+import { useMemo, useState, useEffect } from 'react'
+import { Link }            from 'react-router-dom'
+import { useLive }         from '../App'
+import { useApi }          from '../hooks/useApi'
+import ThroughputChart     from '../components/Charts/ThroughputChart'
+import LatencyChart        from '../components/Charts/LatencyChart'
+import PowerChart          from '../components/Charts/PowerChart'
+import { fmtUptime }       from '../utils/fmt'
 
-// ── GPS panel ─────────────────────────────────────────────────────────────────
-
-const REASON_MSG = {
-  PERMISSION_DENIED: {
-    text: 'The dish requires authorisation from the Starlink app before it will share location data. The API toggle below may not be sufficient on its own.',
-    hint: 'After clicking Enable GPS, also open the Starlink app → Settings and confirm GPS / location sharing is on there.',
-    color: '#f59e0b',
-  },
-  NO_FIX: {
-    text: 'GPS hardware is working but has not obtained a position fix yet.',
-    hint: 'This usually resolves within 1–2 minutes of the dish powering on outdoors.',
-    color: '#4d9fff',
-  },
-  GPS_NOT_VALID: {
-    text: 'GPS hardware is not reporting a valid satellite fix.',
-    hint: 'Check that the dish has a clear view of the sky.',
-    color: '#ef4444',
-  },
-  GRPC_ERROR: {
-    text: 'A communication error occurred while reading location data.',
-    hint: 'Check the backend logs for details.',
-    color: '#ef4444',
-  },
+// ── Alert severity map ────────────────────────────────────────────────────────
+const ALERT_SEVERITY = {
+  thermal_shutdown:            'error',
+  motors_stuck:                'error',
+  mast_not_near_vertical:      'warning',
+  thermal_throttle:            'warning',
+  slow_ethernet_speeds:        'warning',
+  water_detected:              'warning',
+  unexpected_location:         'warning',
+  lower_signal_than_predicted: 'info',
+  roaming:                     'info',
+  betamember_requires_update:  'info',
+  moving_while_not_mobile:     'warning',
+  moving_too_fast_for_policy:  'warning',
 }
 
-function GpsPanel({ gps, onEnable, onDisable, busy, result, errMsg, apiResponse }) {
-  const enabled = gps?.enabled
-  const reason  = gps?.reason
-  const reasonInfo = reason ? REASON_MSG[reason] : null
-
-  // Hardware status row — shown in both states
-  const HwStatus = () => (
-    <div
-      className="rounded-lg p-3 flex items-center justify-between"
-      style={{ background: '#0a0c10', border: '1px solid #1e2330' }}
-    >
-      <div>
-        <p style={{ fontSize: 10, color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>
-          GPS hardware
-        </p>
-        <p style={{ fontSize: 12, color: gps?.gps_valid ? '#22c55e' : '#4a5568' }}>
-          {gps?.gps_valid ? 'Fix acquired' : (gps?.gps_valid === false ? 'No fix' : '—')}
-        </p>
-      </div>
-      <div className="text-right">
-        <p style={{ fontSize: 10, color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>
-          Satellites
-        </p>
-        <p className="mono" style={{ fontSize: 12, color: '#94a3b8' }}>
-          {gps?.gps_sats ?? '—'}
-        </p>
-      </div>
-      <div className="text-right">
-        <p style={{ fontSize: 10, color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>
-          Dish inhibit
-        </p>
-        <p style={{ fontSize: 12, color: gps?.gps_enabled === true ? '#22c55e' : gps?.gps_enabled === false ? '#ef4444' : '#4a5568' }}>
-          {gps?.gps_enabled === true ? 'Off (enabled)' : gps?.gps_enabled === false ? 'On (blocked)' : '—'}
-        </p>
-      </div>
-    </div>
-  )
-
-  if (!enabled) {
-    return (
-      <div className="space-y-3">
-        <HwStatus />
-
-        {/* Reason banner */}
-        {reasonInfo && (
-          <div
-            className="rounded-lg p-3 space-y-1"
-            style={{ background: '#0a0c10', border: `1px solid ${reasonInfo.color}33` }}
-          >
-            <p style={{ fontSize: 11, color: reasonInfo.color, fontWeight: 500 }}>{reason?.replace(/_/g, ' ')}</p>
-            <p style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.5 }}>{reasonInfo.text}</p>
-            <p style={{ fontSize: 10, color: '#4a5568', lineHeight: 1.5 }}>{reasonInfo.hint}</p>
-          </div>
-        )}
-
-        {/* Enable button + feedback */}
-        <div
-          className="rounded-lg p-3 space-y-2"
-          style={{ background: '#0a0c10', border: '1px solid #1e2330' }}
-        >
-          <p style={{ fontSize: 10, color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-            Enable via dashboard API
-          </p>
-          <button
-            onClick={onEnable}
-            disabled={busy}
-            className="flex items-center gap-2 rounded px-3 py-1.5 font-medium transition-opacity disabled:opacity-50"
-            style={{ fontSize: 12, background: '#0a2d6e', color: '#4d9fff', border: '1px solid #1a4a9e' }}
-          >
-            {busy ? 'Sending…' : 'Enable GPS'}
-          </button>
-
-          {result === 'ok' && (
-            <div className="space-y-1">
-              <p style={{ fontSize: 11, color: '#22c55e' }}>
-                ✓ API call succeeded
-                {apiResponse?.gps_enabled != null && ` — dish inhibit now ${apiResponse.gps_enabled ? 'off' : 'on'}`}
-              </p>
-              <p style={{ fontSize: 10, color: '#4a5568' }}>
-                If coordinates still don't appear, confirm location sharing in the Starlink app too.
-              </p>
-            </div>
-          )}
-          {result === 'err' && (
-            <p style={{ fontSize: 11, color: '#ef4444' }}>✗ {errMsg}</p>
-          )}
-
-          {/* App instructions */}
-          <div className="pt-1" style={{ borderTop: '1px solid #1e2330' }}>
-            <p style={{ fontSize: 10, color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>
-              Or via Starlink app
-            </p>
-            {[
-              'Open the Starlink app on your phone',
-              'Tap the menu (≡) → Settings',
-              'Find "GPS" or "Share location data" and toggle on',
-            ].map((s, i) => (
-              <div key={i} className="flex gap-2 mb-1.5">
-                <span
-                  className="shrink-0 rounded-full flex items-center justify-center font-medium"
-                  style={{ width: 16, height: 16, fontSize: 9, background: '#1e2330', color: '#4a5568' }}
-                >
-                  {i + 1}
-                </span>
-                <span style={{ fontSize: 11, color: '#4a5568' }}>{s}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  const { latitude: lat, longitude: lon, altitude: alt } = gps
-  const mapsUrl = `https://www.google.com/maps?q=${lat},${lon}`
-
-  return (
-    <div className="space-y-2">
-      <HwStatus />
-      <div className="grid grid-cols-2 gap-2">
-        {[
-          ['Latitude',  lat != null ? `${lat.toFixed(6)}°`  : '—'],
-          ['Longitude', lon != null ? `${lon.toFixed(6)}°`  : '—'],
-          ['Altitude',  alt != null ? `${alt.toFixed(1)} m` : '—'],
-        ].map(([label, val]) => (
-          <div key={label} className="rounded-lg p-2.5" style={{ background: '#0a0c10', border: '1px solid #1e2330' }}>
-            <p style={{ fontSize: 9, color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
-              {label}
-            </p>
-            <p className="mono" style={{ fontSize: 13, color: '#e2e8f0' }}>{val}</p>
-          </div>
-        ))}
-        {lat != null && lon != null && (
-          <a
-            href={mapsUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="rounded-lg p-2.5 flex items-center justify-center transition-opacity hover:opacity-70"
-            style={{ background: '#0a2d6e', border: '1px solid #1a4a9e', color: '#4d9fff', fontSize: 11 }}
-          >
-            Open in Maps ↗
-          </a>
-        )}
-      </div>
-      <div className="flex items-center justify-between">
-        <button
-          onClick={onDisable}
-          disabled={busy}
-          className="transition-opacity hover:opacity-70 disabled:opacity-40"
-          style={{ fontSize: 10, color: '#4a5568' }}
-        >
-          Disable GPS reporting
-        </button>
-        {result === 'err' && <p style={{ fontSize: 10, color: '#ef4444' }}>{errMsg}</p>}
-        {result === 'ok'  && <p style={{ fontSize: 10, color: '#22c55e' }}>Done</p>}
-      </div>
-    </div>
-  )
+const SEV_STYLE = {
+  error:   { bg: 'var(--bad-bg)',  border: 'var(--bad-border)',  color: 'var(--bad)',  dot: 'var(--bad)'  },
+  warning: { bg: 'var(--warn-bg)', border: 'var(--warn-border)', color: 'var(--warn)', dot: 'var(--warn)' },
+  info:    { bg: 'var(--info-bg)', border: 'var(--info-border)', color: 'var(--info)', dot: 'var(--info)' },
 }
 
-// ── small helpers ─────────────────────────────────────────────────────────────
+const STATE_META = {
+  CONNECTED:        { bg: 'var(--good-bg)',  border: 'var(--good-border)', color: 'var(--good)', dot: 'var(--good)', desc: 'Terminal connected — link active' },
+  OBSTRUCTED:       { bg: 'var(--warn-bg)',  border: 'var(--warn-border)', color: 'var(--warn)', dot: 'var(--warn)', desc: 'Signal blocked by an obstruction in the sky' },
+  THERMAL_SHUTDOWN: { bg: 'var(--bad-bg)',   border: 'var(--bad-border)',  color: 'var(--bad)',  dot: 'var(--bad)',  desc: 'Thermal protection active — dish too hot' },
+  SEARCHING:        { bg: 'var(--info-bg)',  border: 'var(--info-border)', color: 'var(--info)', dot: 'var(--info)', desc: 'Searching for satellites' },
+  BOOTING:          { bg: 'var(--bg-card)',  border: 'var(--border)',      color: 'var(--text-3)', dot: 'var(--text-4)', desc: 'Terminal is starting up' },
+  STOWED:           { bg: 'var(--bg-card)',  border: 'var(--border)',      color: 'var(--text-3)', dot: 'var(--text-4)', desc: 'Terminal is stowed' },
+}
 
-function StatRow({ label, children }) {
+function StateBanner({ state }) {
+  const m = STATE_META[state] ?? { bg: 'var(--bg-card)', border: 'var(--border)', color: 'var(--text-4)', dot: 'var(--text-4)', desc: 'Unknown state' }
   return (
     <div
-      className="flex justify-between items-center py-1.5"
-      style={{ borderBottom: '0.5px solid #1a2030' }}
+      className="rounded-lg px-4 py-3 flex items-center gap-3"
+      style={{ background: m.bg, border: `1px solid ${m.border}` }}
     >
-      <span style={{ fontSize: 10, color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-        {label}
+      <span style={{ position: 'relative', width: 10, height: 10, flexShrink: 0 }}>
+        <span style={{
+          position: 'absolute', inset: 0, borderRadius: '50%', background: m.dot, opacity: 0.25,
+          animation: state === 'CONNECTED' ? 'ping 2s ease-out infinite' : undefined,
+        }} />
+        <span style={{ position: 'absolute', inset: 2, borderRadius: '50%', background: m.dot }} />
       </span>
-      <span style={{ fontSize: 11, color: '#cbd5e1' }}>{children}</span>
+      <div>
+        <p style={{ fontSize: 13, fontWeight: 700, color: m.color, letterSpacing: '0.04em' }}>
+          {state ?? '—'}
+        </p>
+        <p style={{ fontSize: 10, color: m.color, opacity: 0.6, marginTop: 1 }}>{m.desc}</p>
+      </div>
     </div>
-  )
-}
-
-function StateBadge({ state }) {
-  const colors = {
-    CONNECTED:        { bg: '#0a3320', color: '#22c55e' },
-    OBSTRUCTED:       { bg: '#3d2800', color: '#f59e0b' },
-    THERMAL_SHUTDOWN: { bg: '#3b0c0c', color: '#ef4444' },
-    SEARCHING:        { bg: '#0a1a3a', color: '#4d9fff' },
-    BOOTING:          { bg: '#1e2330', color: '#4a5568' },
-    STOWED:           { bg: '#1e2330', color: '#4a5568' },
-  }
-  const sty = colors[state] ?? { bg: '#1e2330', color: '#4a5568' }
-  return (
-    <span
-      className="inline-block rounded px-1.5 py-0.5 font-medium"
-      style={{ fontSize: 10, ...sty }}
-    >
-      {state ?? '—'}
-    </span>
   )
 }
 
@@ -231,229 +67,430 @@ function StateBadge({ state }) {
 export default function Diagnostics() {
   const { data, history } = useLive()
   const { data: diag }    = useApi('/api/diagnostics', 60_000)
+  const { data: svcData } = useApi('/api/service',      60_000)
 
-  // GPS — poll every 15 s; re-fetch on enable/disable
-  const [gpsTick,  setGpsTick]  = useState(0)
-  const [gpsBusy,    setGpsBusy]    = useState(false)
-  const [gpsResult,  setGpsRes]     = useState(null)   // null | 'ok' | 'err'
-  const [gpsErr,     setGpsErr]     = useState('')
-  const [gpsApiResp, setGpsApiResp] = useState(null)
-  const { data: gpsData } = useApi(`/api/location?_t=${gpsTick}`, 15_000)
+  const { data: seedResp }  = useApi('/api/history',          0)
+  const { data: powerResp } = useApi('/api/history?hours=24', 60_000)
 
-  const setGps = useCallback(async (enable) => {
-    setGpsBusy(true)
-    setGpsRes(null)
-    setGpsApiResp(null)
-    try {
-      const r = await fetch(`/api/control/gps/${enable ? 'enable' : 'disable'}`, { method: 'POST' })
-      const body = await r.json().catch(() => ({}))
-      if (!r.ok) throw new Error(body.detail ?? `HTTP ${r.status}`)
-      setGpsRes('ok')
-      setGpsApiResp(body)
-      setGpsTick(t => t + 1)   // force re-fetch of location
-    } catch (e) {
-      setGpsRes('err')
-      setGpsErr(e.message)
-    } finally {
-      setGpsBusy(false)
-      setTimeout(() => { setGpsRes(null); setGpsApiResp(null) }, 8000)
-    }
-  }, [])
+  const chartData = useMemo(() => {
+    const seed       = seedResp?.data ?? []
+    const lastSeedTs = seed.at(-1)?.timestamp ?? 0
+    const newLive    = history.filter(p => p.timestamp > lastSeedTs)
+    return [...seed, ...newLive].slice(-900)
+  }, [seedResp, history])
 
-  // Build pointing history from live WS snapshots (last 90 readings = 90 s)
-  const pointingHistory = useMemo(() =>
-    history
-      .slice(-90)
-      .filter(h => h.direction_azimuth != null && h.direction_elevation != null)
-      .map(h => ({ azimuth: h.direction_azimuth, elevation: h.direction_elevation })),
-    [history]
-  )
+  const [expandedChart, setExpandedChart] = useState(null)
+  useEffect(() => {
+    if (!expandedChart) return
+    const onKey = e => { if (e.key === 'Escape') setExpandedChart(null) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [expandedChart])
 
   const d = data ?? {}
 
-  // Use diag endpoint for temps (it fetches fresh from status) or fall back to WS snapshot
-  const dishTemp  = diag?.dish_temp_c  ?? d.dish_temp_c
-  const boardTemp = diag?.board_temp_c ?? d.board_temp_c
+  const alerts = d.alerts ?? []
+
+  const disabledCode = svcData?.disablement_code
+  const dlRestrict   = svcData?.dl_restricted_reason
+  const ulRestrict   = svcData?.ul_restricted_reason
+  const isOkEnum     = v => !v || v.startsWith('UNKNOWN') || v === 'OKAY' || v === 'NONE' || v === 'NOT_RESTRICTED' || v === 'NO_LIMIT'
+  const showDisabled = !isOkEnum(disabledCode)
+  const showDlLimit  = !isOkEnum(dlRestrict)
+  const showUlLimit  = !isOkEnum(ulRestrict)
+  const hasRestrictions = showDisabled || showDlLimit || showUlLimit
+
   const azimuth   = diag?.pointing?.azimuth_deg   ?? d.direction_azimuth
   const elevation = diag?.pointing?.elevation_deg ?? d.direction_elevation
 
+  // ── Connection quality stats from history ──────────────────────────────────
+  const connStats = useMemo(() => {
+    const rows = chartData.filter(r => r.latency_ms != null)
+    if (!rows.length) return null
+
+    const lats  = rows.map(r => r.latency_ms)
+    const drops = rows.map(r => r.drop_rate_pct ?? 0)
+
+    const avg   = arr => arr.reduce((s, v) => s + v, 0) / arr.length
+    const pct   = (arr, p) => {
+      const sorted = [...arr].sort((a, b) => a - b)
+      return sorted[Math.floor(sorted.length * p / 100)]
+    }
+
+    const lossEvents = drops.filter(v => v > 0).length
+    const spanMins   = rows.length / 60
+
+    return {
+      latAvg:    Math.round(avg(lats)),
+      latMin:    Math.round(Math.min(...lats)),
+      latMax:    Math.round(Math.max(...lats)),
+      latP95:    Math.round(pct(lats, 95)),
+      dropAvg:   avg(drops),
+      dropMax:   Math.max(...drops),
+      lossEvents,
+      spanMins:  Math.round(spanMins),
+      samples:   rows.length,
+    }
+  }, [chartData])
+
   return (
-    <div className="flex gap-3 min-h-0">
+    <div className="space-y-3">
 
-      {/* ══ LEFT PANEL — large obstruction map ══════════════════════════════ */}
+      {/* ══ CHARTS SECTION ══════════════════════════════════════════════════ */}
+      <div className="grid grid-cols-2 gap-3">
+        {[
+          { key: 'throughput', node: <ThroughputChart data={chartData} /> },
+          { key: 'latency',    node: <LatencyChart    data={chartData} /> },
+        ].map(({ key, node }) => (
+          <div
+            key={key}
+            className="rounded-lg p-3 cursor-pointer group"
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', transition: 'border-color 0.15s' }}
+            onClick={() => setExpandedChart(key)}
+            onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-border)'}
+            onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
+            title="Click to expand"
+          >
+            <div style={{ pointerEvents: 'none' }}>{node}</div>
+            <div style={{ textAlign: 'right', marginTop: 4 }}>
+              <span style={{ fontSize: 9, color: 'var(--text-6)', letterSpacing: '0.06em' }}>click to expand</span>
+            </div>
+          </div>
+        ))}
+      </div>
       <div
-        className="rounded-lg p-4 flex flex-col gap-3 shrink-0"
-        style={{ width: 300, background: '#0d1017', border: '1px solid #1e2330' }}
+        className="rounded-lg p-3 cursor-pointer"
+        style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', transition: 'border-color 0.15s' }}
+        onClick={() => setExpandedChart('power')}
+        onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-border)'}
+        onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
+        title="Click to expand"
       >
-        <p className="label">Obstruction Map</p>
-
-        <div className="flex justify-center">
-          <ObstructionMap
-            mapData={diag?.obstruction_map}
-            azimuth={azimuth}
-            elevation={elevation}
-            size={260}
-            showLegend
-          />
+        <div style={{ pointerEvents: 'none' }}>
+          <PowerChart data={powerResp?.data ?? []} hours={24} />
         </div>
-
-        {/* Obstruction stats */}
-        <div>
-          <StatRow label="Obstructed">
-            {diag?.is_obstructed != null ? (
-              <span style={{ color: diag.is_obstructed ? '#f59e0b' : '#22c55e' }}>
-                {diag.is_obstructed ? 'Yes' : 'No'}
-              </span>
-            ) : '—'}
-          </StatRow>
-          <StatRow label="Fraction blocked">
-            {diag?.fraction_obstructed_pct != null
-              ? `${diag.fraction_obstructed_pct.toFixed(1)} %`
-              : '—'}
-          </StatRow>
+        <div style={{ textAlign: 'right', marginTop: 4 }}>
+          <span style={{ fontSize: 9, color: 'var(--text-6)', letterSpacing: '0.06em' }}>click to expand</span>
         </div>
       </div>
 
-      {/* ══ RIGHT PANEL — tracker + gauges + status ═════════════════════════ */}
-      <div className="flex-1 flex flex-col gap-3 min-w-0">
+      {/* ══ ACTIVE ALERTS ═══════════════════════════════════════════════════ */}
+      <div className="rounded-lg p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+        <div className="flex items-center justify-between mb-3">
+          <p className="label">Active Alerts</p>
+          {alerts.length > 0 && (
+            <span
+              className="rounded-full px-2 py-0.5 font-medium"
+              style={{ fontSize: 10, background: 'var(--bad-bg)', color: 'var(--bad)', border: '1px solid var(--bad-border)' }}
+            >
+              {alerts.length}
+            </span>
+          )}
+        </div>
 
-        {/* Row 1: satellite tracker + temperature gauges */}
-        <div
-          className="rounded-lg p-4 flex flex-wrap gap-6 items-start justify-around"
-          style={{ background: '#0d1017', border: '1px solid #1e2330' }}
-        >
-          {/* Satellite / pointing tracker */}
-          <div className="flex flex-col items-center gap-1">
-            <p className="label mb-2">Satellite Tracker</p>
-            <SatelliteTracker
-              azimuth={azimuth}
-              elevation={elevation}
-              history={pointingHistory}
-              size={150}
-            />
+        {alerts.length === 0 ? (
+          <div className="flex items-center gap-2">
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--good)', display: 'inline-block' }} />
+            <span style={{ fontSize: 12, color: 'var(--text-4)' }}>No active alerts</span>
           </div>
-
-          {/* Temperature gauges */}
-          <div className="flex flex-col gap-1">
-            <p className="label mb-2">Temperatures</p>
-            <div className="flex gap-4">
-              <TempGauge label="Dish"  value={dishTemp}  size={120} unavailable={dishTemp  == null} />
-              <TempGauge label="Board" value={boardTemp} size={120} unavailable={boardTemp == null} />
+        ) : (
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex flex-wrap gap-1.5">
+              {alerts.map(alert => {
+                const sev = ALERT_SEVERITY[alert.key] ?? 'warning'
+                const s   = SEV_STYLE[sev]
+                return (
+                  <span
+                    key={alert.key}
+                    className="inline-flex items-center gap-1.5 rounded px-2 py-0.5"
+                    style={{ fontSize: 11, background: s.bg, border: `1px solid ${s.border}`, color: s.color }}
+                  >
+                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: s.dot, flexShrink: 0 }} />
+                    {alert.label}
+                  </span>
+                )
+              })}
             </div>
-            {dishTemp == null && boardTemp == null && (
-              <p style={{ fontSize: 10, color: '#2a3344', marginTop: 4 }}>
-                Temperature data is not reported by this dish hardware
-              </p>
+            <Link
+              to="/alerts"
+              style={{ fontSize: 11, color: 'var(--accent)', whiteSpace: 'nowrap', textDecoration: 'none', flexShrink: 0 }}
+            >
+              View details →
+            </Link>
+          </div>
+        )}
+
+        {/* Service restrictions */}
+        {hasRestrictions && (
+          <div className="mt-3 space-y-2">
+            {showDisabled && (
+              <div className="rounded-lg px-3 py-2 flex items-start gap-2"
+                style={{ background: 'var(--bad-bg)', border: '1px solid var(--bad-border)' }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--bad)', flexShrink: 0, marginTop: 3 }} />
+                <div>
+                  <span style={{ fontSize: 12, color: 'var(--bad)', fontWeight: 600 }}>Terminal disabled</span>
+                  <span className="mono" style={{ fontSize: 11, color: 'var(--bad)', opacity: 0.7, marginLeft: 6 }}>{disabledCode}</span>
+                </div>
+              </div>
+            )}
+            {showDlLimit && (
+              <div className="rounded-lg px-3 py-2 flex items-start gap-2"
+                style={{ background: 'var(--warn-bg)', border: '1px solid var(--warn-border)' }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--warn)', flexShrink: 0, marginTop: 3 }} />
+                <div>
+                  <span style={{ fontSize: 12, color: 'var(--warn)', fontWeight: 600 }}>Download restricted</span>
+                  <span className="mono" style={{ fontSize: 11, color: 'var(--warn)', opacity: 0.7, marginLeft: 6 }}>{dlRestrict}</span>
+                </div>
+              </div>
+            )}
+            {showUlLimit && (
+              <div className="rounded-lg px-3 py-2 flex items-start gap-2"
+                style={{ background: 'var(--warn-bg)', border: '1px solid var(--warn-border)' }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--warn)', flexShrink: 0, marginTop: 3 }} />
+                <div>
+                  <span style={{ fontSize: 12, color: 'var(--warn)', fontWeight: 600 }}>Upload restricted</span>
+                  <span className="mono" style={{ fontSize: 11, color: 'var(--warn)', opacity: 0.7, marginLeft: 6 }}>{ulRestrict}</span>
+                </div>
+              </div>
             )}
           </div>
+        )}
+      </div>
+
+      {/* ══ DIAGNOSTICS TOOLS ═══════════════════════════════════════════════ */}
+
+        {/* Row 1: Connection Quality */}
+        <div
+          className="rounded-lg p-4"
+          style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+        >
+          <div className="flex items-baseline justify-between mb-3">
+            <p className="label">Connection Quality</p>
+            {connStats && (
+              <span style={{ fontSize: 10, color: 'var(--text-6)' }}>
+                last {connStats.spanMins} min · {connStats.samples} samples
+              </span>
+            )}
+          </div>
+
+          {!connStats ? (
+            <p style={{ fontSize: 11, color: 'var(--text-5)' }}>Collecting data…</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+
+              {/* Latency block */}
+              <div className="rounded-lg p-3 space-y-2" style={{ background: 'var(--bg-inner)', border: '1px solid var(--border)' }}>
+                <p style={{ fontSize: 9, color: 'var(--text-4)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  Latency (ms)
+                </p>
+                <div className="grid grid-cols-4 gap-1">
+                  {[
+                    ['Min',  connStats.latMin,  connStats.latMin  < 40  ? 'var(--good)' : connStats.latMin  < 80  ? 'var(--warn)' : 'var(--bad)'],
+                    ['Avg',  connStats.latAvg,  connStats.latAvg  < 60  ? 'var(--good)' : connStats.latAvg  < 120 ? 'var(--warn)' : 'var(--bad)'],
+                    ['P95',  connStats.latP95,  connStats.latP95  < 100 ? 'var(--good)' : connStats.latP95  < 200 ? 'var(--warn)' : 'var(--bad)'],
+                    ['Max',  connStats.latMax,  connStats.latMax  < 150 ? 'var(--good)' : connStats.latMax  < 300 ? 'var(--warn)' : 'var(--bad)'],
+                  ].map(([lbl, val, col]) => (
+                    <div key={lbl} className="flex flex-col items-center">
+                      <span style={{ fontSize: 8, color: 'var(--text-4)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{lbl}</span>
+                      <span style={{ fontSize: 18, fontWeight: 700, color: col, fontVariantNumeric: 'tabular-nums', lineHeight: 1.2 }}>{val}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Drop rate block */}
+              <div className="rounded-lg p-3 space-y-2" style={{ background: 'var(--bg-inner)', border: '1px solid var(--border)' }}>
+                <p style={{ fontSize: 9, color: 'var(--text-4)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  Packet Loss
+                </p>
+                <div className="grid grid-cols-3 gap-1">
+                  {[
+                    ['Avg %',   (connStats.dropAvg).toFixed(2),  connStats.dropAvg < 0.5  ? 'var(--good)' : connStats.dropAvg < 2    ? 'var(--warn)' : 'var(--bad)'],
+                    ['Peak %',  (connStats.dropMax).toFixed(1),  connStats.dropMax < 1    ? 'var(--good)' : connStats.dropMax < 5    ? 'var(--warn)' : 'var(--bad)'],
+                    ['Events',  connStats.lossEvents,            connStats.lossEvents < 3 ? 'var(--good)' : connStats.lossEvents < 15 ? 'var(--warn)' : 'var(--bad)'],
+                  ].map(([lbl, val, col]) => (
+                    <div key={lbl} className="flex flex-col items-center">
+                      <span style={{ fontSize: 8, color: 'var(--text-4)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{lbl}</span>
+                      <span style={{ fontSize: 18, fontWeight: 700, color: col, fontVariantNumeric: 'tabular-nums', lineHeight: 1.2 }}>{val}</span>
+                    </div>
+                  ))}
+                </div>
+                <p style={{ fontSize: 9, color: 'var(--text-6)', marginTop: 2 }}>
+                  Events = samples where drop rate &gt; 0
+                </p>
+              </div>
+
+            </div>
+          )}
         </div>
 
         {/* Row 2: signal quality + connection status */}
         <div
-          className="rounded-lg p-4"
-          style={{ background: '#0d1017', border: '1px solid #1e2330' }}
+          className="rounded-lg p-4 space-y-3"
+          style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
         >
-          <p className="label mb-3">Signal &amp; Status</p>
+          <p className="label">Signal &amp; Status</p>
 
-          {/* SNR indicator — segmented bar */}
-          <div className="mb-3">
-            <div className="flex justify-between mb-1">
-              <span style={{ fontSize: 10, color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                SNR above noise floor
-              </span>
-              <span style={{
-                fontSize: 10, fontWeight: 500,
-                color: d.snr_above_floor === true  ? '#22c55e'
-                     : d.snr_above_floor === false ? '#ef4444'
-                     : '#2a3344',
-              }}>
-                {d.snr_above_floor === true  ? 'Yes'
-                : d.snr_above_floor === false ? 'No'
-                : '—'}
-              </span>
-            </div>
-            {/* Visual bar */}
-            <div
-              className="rounded-full overflow-hidden"
-              style={{ height: 6, background: '#1e2330' }}
-            >
-              <div
-                className="h-full rounded-full transition-all duration-500"
-                style={{
-                  width: d.snr_above_floor ? '100%' : d.snr_above_floor === false ? '15%' : '0%',
-                  background: d.snr_above_floor ? '#22c55e' : '#ef4444',
-                }}
-              />
-            </div>
-          </div>
+          <StateBanner state={d.state ?? diag?.state} />
 
-          <div>
-            <StatRow label="State">
-              <StateBadge state={d.state ?? diag?.state} />
-            </StatRow>
-            <StatRow label="GPS">
-              {d.gps_ready != null ? (
-                <span style={{ color: d.gps_ready ? '#22c55e' : '#f59e0b' }}>
-                  {d.gps_ready ? `Ready — ${d.gps_sats ?? '?'} sats` : 'Not ready'}
+          <div className="grid grid-cols-2 gap-3">
+
+            {/* Left: signal indicators */}
+            <div className="space-y-2">
+              {/* SNR */}
+              <div className="rounded-lg p-3" style={{ background: 'var(--bg-inner)', border: '1px solid var(--border)' }}>
+                <p style={{ fontSize: 9, color: 'var(--text-4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
+                  SNR above noise floor
+                </p>
+                <span
+                  className="inline-block rounded-full px-2 py-0.5 font-semibold"
+                  style={{
+                    fontSize: 11,
+                    background: d.snr_above_floor === true  ? 'var(--good-bg)'
+                              : d.snr_above_floor === false ? 'var(--bad-bg)' : 'var(--bg-card)',
+                    color:     d.snr_above_floor === true  ? 'var(--good)'
+                              : d.snr_above_floor === false ? 'var(--bad)' : 'var(--text-4)',
+                    border:    `1px solid ${d.snr_above_floor === true ? 'var(--good-border)' : d.snr_above_floor === false ? 'var(--bad-border)' : 'var(--border)'}`,
+                  }}
+                >
+                  {d.snr_above_floor === true ? '✓ Above floor' : d.snr_above_floor === false ? '✗ Below floor' : '—'}
                 </span>
-              ) : '—'}
-            </StatRow>
-            <StatRow label="Latitude">
-              {gpsData?.latitude != null
-                ? <span className="mono" style={{ fontSize: 11 }}>{gpsData.latitude.toFixed(6)}°</span>
-                : <span style={{ color: '#2a3344' }}>—</span>}
-            </StatRow>
-            <StatRow label="Longitude">
-              {gpsData?.longitude != null
-                ? <span className="mono" style={{ fontSize: 11 }}>{gpsData.longitude.toFixed(6)}°</span>
-                : <span style={{ color: '#2a3344' }}>—</span>}
-            </StatRow>
-            <StatRow label="Pointing">
-              {azimuth != null && elevation != null
-                ? <span className="mono" style={{ fontSize: 11 }}>
-                    Az {azimuth.toFixed(1)}°  El {elevation.toFixed(1)}°
-                  </span>
-                : '—'}
-            </StatRow>
-            <StatRow label="Uptime">
-              {(() => {
-                const s = d.uptime_s
-                if (!s) return '—'
-                const d2 = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600)
-                const m = Math.floor((s % 3600) / 60)
-                return d2 > 0 ? `${d2}d ${h}h` : h > 0 ? `${h}h ${m}m` : `${m}m`
-              })()}
-            </StatRow>
-            <StatRow label="Software">
-              <span className="mono" style={{ fontSize: 10, color: '#4a5568' }}>
-                {d.software_version ?? '—'}
-              </span>
-            </StatRow>
-            <StatRow label="Hardware">
-              <span className="mono" style={{ fontSize: 10, color: '#4a5568' }}>
-                {d.hardware_version ?? '—'}
-              </span>
-            </StatRow>
+              </div>
+
+              {/* GPS sats */}
+              <div className="rounded-lg p-3" style={{ background: 'var(--bg-inner)', border: '1px solid var(--border)' }}>
+                <p style={{ fontSize: 9, color: 'var(--text-4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
+                  GPS
+                </p>
+                {d.gps_ready != null ? (
+                  <div className="flex items-center justify-between">
+                    <span
+                      className="inline-block rounded-full px-2 py-0.5 font-semibold"
+                      style={{
+                        fontSize: 11,
+                        background: d.gps_ready ? 'var(--good-bg)' : 'var(--warn-bg)',
+                        color:     d.gps_ready ? 'var(--good)' : 'var(--warn)',
+                        border:    `1px solid ${d.gps_ready ? 'var(--good-border)' : 'var(--warn-border)'}`,
+                      }}
+                    >
+                      {d.gps_ready ? '✓ Ready' : '○ Not ready'}
+                    </span>
+                    {d.gps_ready && d.gps_sats != null && (
+                      <span style={{ fontSize: 11, color: 'var(--text-4)' }}>
+                        {d.gps_sats} sats
+                      </span>
+                    )}
+                  </div>
+                ) : <span style={{ fontSize: 11, color: 'var(--text-5)' }}>—</span>}
+              </div>
+
+              {/* Dish pointing */}
+              <div className="rounded-lg p-3" style={{ background: 'var(--bg-inner)', border: '1px solid var(--border)' }}>
+                <p style={{ fontSize: 9, color: 'var(--text-4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
+                  Dish pointing
+                </p>
+                {azimuth != null && elevation != null ? (
+                  <div className="flex gap-3">
+                    <div>
+                      <span style={{ fontSize: 9, color: 'var(--text-4)' }}>Az</span>
+                      <span className="mono" style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-3)', marginLeft: 4 }}>
+                        {azimuth.toFixed(1)}°
+                      </span>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: 9, color: 'var(--text-4)' }}>El</span>
+                      <span className="mono" style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-3)', marginLeft: 4 }}>
+                        {elevation.toFixed(1)}°
+                      </span>
+                    </div>
+                  </div>
+                ) : <span style={{ fontSize: 11, color: 'var(--text-5)' }}>—</span>}
+              </div>
+            </div>
+
+            {/* Right: terminal identity */}
+            <div className="space-y-2">
+              {/* Uptime */}
+              <div className="rounded-lg p-3" style={{ background: 'var(--bg-inner)', border: '1px solid var(--border)' }}>
+                <p style={{ fontSize: 9, color: 'var(--text-4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
+                  Uptime since last boot
+                </p>
+                <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-1)' }}>
+                  {fmtUptime(d.uptime_s) ?? <span style={{ color: 'var(--text-5)' }}>—</span>}
+                </p>
+              </div>
+
+              {/* Software */}
+              <div className="rounded-lg p-3" style={{ background: 'var(--bg-inner)', border: '1px solid var(--border)' }}>
+                <p style={{ fontSize: 9, color: 'var(--text-4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
+                  Software version
+                </p>
+                <p className="mono" style={{ fontSize: 11, color: 'var(--info)', wordBreak: 'break-all' }}>
+                  {d.software_version ?? <span style={{ color: 'var(--text-5)' }}>—</span>}
+                </p>
+              </div>
+
+              {/* Hardware */}
+              <div className="rounded-lg p-3" style={{ background: 'var(--bg-inner)', border: '1px solid var(--border)' }}>
+                <p style={{ fontSize: 9, color: 'var(--text-4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
+                  Hardware version
+                </p>
+                <p className="mono" style={{ fontSize: 11, color: 'var(--text-3)', wordBreak: 'break-all' }}>
+                  {d.hardware_version ?? <span style={{ color: 'var(--text-5)' }}>—</span>}
+                </p>
+              </div>
+            </div>
+
           </div>
         </div>
-        {/* Row 3: GPS location */}
-        <div
-          className="rounded-lg p-4"
-          style={{ background: '#0d1017', border: '1px solid #1e2330' }}
-        >
-          <p className="label mb-3">GPS Location</p>
-          <GpsPanel
-            gps={gpsData}
-            onEnable={() => setGps(true)}
-            onDisable={() => setGps(false)}
-            busy={gpsBusy}
-            result={gpsResult}
-            errMsg={gpsErr}
-            apiResponse={gpsApiResp}
-          />
-        </div>
 
-      </div>
+      {/* ══ CHART EXPAND OVERLAY ════════════════════════════════════════════ */}
+      {expandedChart && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(3px)' }}
+          onClick={() => setExpandedChart(null)}
+        >
+          <div
+            className="rounded-xl p-5 flex flex-col gap-3"
+            style={{
+              background: 'var(--bg-card)',
+              border: '1px solid var(--accent-border)',
+              width: 'min(92vw, 960px)',
+              boxShadow: '0 0 48px rgba(77,159,255,0.08)',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <span style={{ fontSize: 11, color: 'var(--text-4)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600 }}>
+                {expandedChart === 'throughput' ? 'Throughput'
+               : expandedChart === 'latency'   ? 'Latency & Drop Rate'
+               : 'Power'}
+              </span>
+              <button
+                onClick={() => setExpandedChart(null)}
+                style={{
+                  fontSize: 11, color: 'var(--text-4)', background: 'none', border: 'none',
+                  cursor: 'pointer', padding: '2px 8px', borderRadius: 4,
+                }}
+                onMouseEnter={e => e.currentTarget.style.color = 'var(--text-1)'}
+                onMouseLeave={e => e.currentTarget.style.color = 'var(--text-4)'}
+              >
+                ✕ close
+              </button>
+            </div>
+
+            {expandedChart === 'throughput' && <ThroughputChart data={chartData}          height={340} />}
+            {expandedChart === 'latency'    && <LatencyChart    data={chartData}          height={340} />}
+            {expandedChart === 'power'      && <PowerChart      data={powerResp?.data ?? []} hours={24} height={340} />}
+
+            <p style={{ fontSize: 10, color: 'var(--text-6)', textAlign: 'center' }}>
+              Click outside or press Esc to close
+            </p>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }

@@ -84,23 +84,31 @@ def check_single_instance():
 
 
 def create_icon():
-    """Create a simple tray icon with SL initials."""
-    try:
-        size = 64
-        img = Image.new("RGBA", (size, size), color=(0, 0, 0, 0))
-        draw = ImageDraw.Draw(img)
+    """Load tray icon from icon.ico, with an SL circle as fallback."""
+    candidates = []
+    if getattr(sys, 'frozen', False):
+        exe_dir = Path(sys.executable).parent
+        candidates += [
+            exe_dir / "_internal" / "icon.ico",
+            exe_dir / "icon.ico",
+        ]
+    candidates.append(Path(__file__).parent / "icon.ico")
 
-        # Draw background circle
-        draw.ellipse([0, 0, size - 1, size - 1], fill=(30, 144, 255), outline=(255, 255, 255))
+    for path in candidates:
+        if path.exists():
+            try:
+                img = Image.open(path).convert("RGBA").resize((64, 64), Image.LANCZOS)
+                return img
+            except Exception:
+                pass
 
-        # Draw text "SL" for Starlink
-        draw.text((size // 2, size // 2), "SL", fill=(255, 255, 255), anchor="mm", font=None)
-
-        return img
-    except Exception as e:
-        print(f"Error creating icon: {e}")
-        # Create fallback solid color icon (match RGBA format)
-        return Image.new("RGBA", (64, 64), color=(30, 144, 255, 255))
+    # Fallback: draw blue circle with "SL"
+    size = 64
+    img = Image.new("RGBA", (size, size), color=(0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    draw.ellipse([0, 0, size - 1, size - 1], fill=(30, 144, 255), outline=(255, 255, 255))
+    draw.text((size // 2, size // 2), "SL", fill=(255, 255, 255), anchor="mm", font=None)
+    return img
 
 
 def run_server():

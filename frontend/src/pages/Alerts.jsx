@@ -39,14 +39,14 @@ function ActiveCard({ alert, onDismiss }) {
   return (
     <div
       className="rounded-lg px-4 py-3 space-y-2.5"
-      style={{ background: '#7c2d12', border: '1px solid #c2410c' }}
+      style={{ background: 'var(--alert-bg)', border: '1px solid var(--alert-border)' }}
     >
       {/* Header row */}
       <div className="flex items-start gap-3">
-        <IconAlertTriangle size={16} stroke={2} style={{ color: '#fb923c', flexShrink: 0, marginTop: 1 }} />
+        <IconAlertTriangle size={16} stroke={2} style={{ color: 'var(--alert-accent)', flexShrink: 0, marginTop: 1 }} />
         <div className="flex-1 min-w-0">
-          <p className="font-medium" style={{ fontSize: 13, color: '#fed7aa' }}>{alert.label}</p>
-          <p style={{ fontSize: 10, color: '#c2410c', marginTop: 2 }}>
+          <p className="font-medium" style={{ fontSize: 13, color: 'var(--alert-text)' }}>{alert.label}</p>
+          <p style={{ fontSize: 10, color: 'var(--alert-border)', marginTop: 2 }}>
             Active since {fmtTime(alert.startTime)}
           </p>
         </div>
@@ -54,7 +54,7 @@ function ActiveCard({ alert, onDismiss }) {
           <button
             onClick={() => onDismiss(alert.key)}
             className="hover:opacity-70 transition-opacity"
-            style={{ color: '#fb923c', lineHeight: 0, flexShrink: 0 }}
+            style={{ color: 'var(--alert-accent)', lineHeight: 0, flexShrink: 0 }}
             aria-label="Dismiss"
           >
             <IconX size={14} stroke={2} />
@@ -64,7 +64,7 @@ function ActiveCard({ alert, onDismiss }) {
 
       {/* Description */}
       {meta?.description && (
-        <p style={{ fontSize: 12, color: '#fcd9aa', lineHeight: 1.55, paddingLeft: 27 }}>
+        <p style={{ fontSize: 12, color: 'var(--alert-sub)', lineHeight: 1.55, paddingLeft: 27 }}>
           {meta.description}
         </p>
       )}
@@ -74,8 +74,8 @@ function ActiveCard({ alert, onDismiss }) {
         <ul className="space-y-1.5" style={{ paddingLeft: 27 }}>
           {meta.actions.map((action, i) => (
             <li key={i} className="flex gap-2">
-              <IconChevronRight size={11} stroke={2} style={{ color: '#c2410c', flexShrink: 0, marginTop: 1 }} />
-              <span style={{ fontSize: 12, color: '#fed7aa', lineHeight: 1.45 }}>{action}</span>
+              <IconChevronRight size={11} stroke={2} style={{ color: 'var(--alert-border)', flexShrink: 0, marginTop: 1 }} />
+              <span style={{ fontSize: 12, color: 'var(--alert-text)', lineHeight: 1.45 }}>{action}</span>
             </li>
           ))}
         </ul>
@@ -88,7 +88,7 @@ function ActiveCard({ alert, onDismiss }) {
             onClick={reboot}
             disabled={busy}
             className="flex items-center gap-1.5 rounded px-2.5 py-1 font-medium transition-opacity disabled:opacity-50"
-            style={{ fontSize: 11, background: '#3b0c0c', color: '#fb923c', border: '1px solid #7c2d12' }}
+            style={{ fontSize: 11, background: 'var(--bad-bg)', color: 'var(--alert-accent)', border: '1px solid var(--alert-bg)' }}
           >
             {busy
               ? <IconRefresh size={11} stroke={2} className="animate-spin" />
@@ -108,7 +108,7 @@ export default function Alerts() {
   const [dismissed, setDismissed] = useState(new Set())
 
   const activeAlerts  = (data?.alerts ?? []).filter(a => !dismissed.has(a.key))
-  const historyAlerts = alertLog  // newest first from useAlertLog
+  const historyAlerts = alertLog
 
   return (
     <div className="space-y-4 max-w-3xl">
@@ -120,7 +120,7 @@ export default function Alerts() {
           {activeAlerts.length > 0 && (
             <span
               className="rounded-full px-2 py-0.5 font-medium"
-              style={{ fontSize: 10, background: '#7c2d12', color: '#fb923c' }}
+              style={{ fontSize: 10, background: 'var(--alert-bg)', color: 'var(--alert-accent)' }}
             >
               {activeAlerts.length}
             </span>
@@ -143,10 +143,10 @@ export default function Alerts() {
         ) : (
           <div
             className="rounded-lg px-4 py-5 flex items-center gap-3"
-            style={{ background: '#0d1017', border: '1px solid #1e2330' }}
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
           >
-            <IconCircleCheck size={18} stroke={1.5} style={{ color: '#22c55e' }} />
-            <p style={{ fontSize: 13, color: '#4a5568' }}>No active alerts — all systems nominal</p>
+            <IconCircleCheck size={18} stroke={1.5} style={{ color: 'var(--good)' }} />
+            <p style={{ fontSize: 13, color: 'var(--text-4)' }}>No active alerts — all systems nominal</p>
           </div>
         )}
       </section>
@@ -159,7 +159,7 @@ export default function Alerts() {
             {historyAlerts.length > 0 && (
               <span
                 className="rounded-full px-2 py-0.5"
-                style={{ fontSize: 10, background: '#1e2330', color: '#4a5568' }}
+                style={{ fontSize: 10, background: 'var(--border)', color: 'var(--text-4)' }}
               >
                 {historyAlerts.length}
               </span>
@@ -169,7 +169,7 @@ export default function Alerts() {
             <button
               onClick={clearLog}
               className="flex items-center gap-1 hover:opacity-70 transition-opacity"
-              style={{ fontSize: 10, color: '#4a5568' }}
+              style={{ fontSize: 10, color: 'var(--text-4)' }}
             >
               <IconTrash size={11} stroke={1.5} />
               Clear history
@@ -180,22 +180,22 @@ export default function Alerts() {
         {historyAlerts.length === 0 ? (
           <div
             className="rounded-lg px-4 py-5 text-center"
-            style={{ background: '#0d1017', border: '1px solid #1e2330' }}
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
           >
-            <p style={{ fontSize: 12, color: '#2a3344' }}>
+            <p style={{ fontSize: 12, color: 'var(--text-5)' }}>
               No alert history yet — alerts will be recorded here when they occur
             </p>
           </div>
         ) : (
-          <div className="rounded-lg overflow-hidden" style={{ border: '1px solid #1e2330' }}>
+          <div className="rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
             <table className="w-full" style={{ borderCollapse: 'collapse' }}>
               <thead>
-                <tr style={{ background: '#111520', borderBottom: '1px solid #1e2330' }}>
+                <tr style={{ background: 'var(--tbl-head)', borderBottom: '1px solid var(--border)' }}>
                   {['Time', 'Alert', 'Duration', 'Status'].map(h => (
                     <th
                       key={h}
                       className="text-left"
-                      style={{ padding: '7px 12px', fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#4a5568' }}
+                      style={{ padding: '7px 12px', fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-4)' }}
                     >
                       {h}
                     </th>
@@ -208,11 +208,11 @@ export default function Alerts() {
                   return (
                     <tr
                       key={entry.id}
-                      style={{ borderTop: i === 0 ? 'none' : '0.5px solid #1a2030' }}
+                      style={{ borderTop: i === 0 ? 'none' : '0.5px solid var(--border-dim)' }}
                     >
                       {/* Time */}
                       <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>
-                        <span className="mono" style={{ fontSize: 11, color: '#4a5568' }}>
+                        <span className="mono" style={{ fontSize: 11, color: 'var(--text-4)' }}>
                           {fmtDate(entry.startTime)}
                         </span>
                       </td>
@@ -222,9 +222,9 @@ export default function Alerts() {
                         <div className="flex items-center gap-2">
                           <IconAlertTriangle
                             size={12} stroke={2}
-                            style={{ color: isActive ? '#fb923c' : '#4a5568', flexShrink: 0 }}
+                            style={{ color: isActive ? 'var(--alert-accent)' : 'var(--text-4)', flexShrink: 0 }}
                           />
-                          <span style={{ fontSize: 12, color: isActive ? '#fed7aa' : '#cbd5e1' }}>
+                          <span style={{ fontSize: 12, color: isActive ? 'var(--alert-text)' : 'var(--text-2)' }}>
                             {entry.label}
                           </span>
                         </div>
@@ -232,7 +232,7 @@ export default function Alerts() {
 
                       {/* Duration */}
                       <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>
-                        <span className="mono" style={{ fontSize: 11, color: '#4a5568' }}>
+                        <span className="mono" style={{ fontSize: 11, color: 'var(--text-4)' }}>
                           {fmtDuration(entry.startTime, entry.endTime)}
                         </span>
                       </td>
@@ -242,18 +242,18 @@ export default function Alerts() {
                         {isActive ? (
                           <span
                             className="inline-flex items-center gap-1 rounded px-1.5 py-0.5"
-                            style={{ fontSize: 10, background: '#7c2d12', color: '#fb923c' }}
+                            style={{ fontSize: 10, background: 'var(--alert-bg)', color: 'var(--alert-accent)' }}
                           >
                             <span
                               className="inline-block rounded-full"
-                              style={{ width: 5, height: 5, background: '#fb923c' }}
+                              style={{ width: 5, height: 5, background: 'var(--alert-accent)' }}
                             />
                             Active
                           </span>
                         ) : (
                           <span
                             className="inline-flex items-center gap-1 rounded px-1.5 py-0.5"
-                            style={{ fontSize: 10, background: '#0a3320', color: '#22c55e' }}
+                            style={{ fontSize: 10, background: 'var(--good-bg)', color: 'var(--good)' }}
                           >
                             <IconCircleCheck size={10} stroke={2} />
                             Resolved
@@ -277,7 +277,7 @@ export default function Alerts() {
             {outageLog?.length > 0 && (
               <span
                 className="rounded-full px-2 py-0.5"
-                style={{ fontSize: 10, background: '#1e2330', color: '#4a5568' }}
+                style={{ fontSize: 10, background: 'var(--border)', color: 'var(--text-4)' }}
               >
                 {outageLog.length}
               </span>
@@ -287,7 +287,7 @@ export default function Alerts() {
             <button
               onClick={clearOutageLog}
               className="flex items-center gap-1 hover:opacity-70 transition-opacity"
-              style={{ fontSize: 10, color: '#4a5568' }}
+              style={{ fontSize: 10, color: 'var(--text-4)' }}
             >
               <IconTrash size={11} stroke={1.5} />
               Clear
@@ -298,22 +298,22 @@ export default function Alerts() {
         {!outageLog?.length ? (
           <div
             className="rounded-lg px-4 py-5 text-center"
-            style={{ background: '#0d1017', border: '1px solid #1e2330' }}
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
           >
-            <p style={{ fontSize: 12, color: '#2a3344' }}>
+            <p style={{ fontSize: 12, color: 'var(--text-5)' }}>
               No outages recorded — disconnections will appear here
             </p>
           </div>
         ) : (
-          <div className="rounded-lg overflow-hidden" style={{ border: '1px solid #1e2330' }}>
+          <div className="rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
             <table className="w-full" style={{ borderCollapse: 'collapse' }}>
               <thead>
-                <tr style={{ background: '#111520', borderBottom: '1px solid #1e2330' }}>
+                <tr style={{ background: 'var(--tbl-head)', borderBottom: '1px solid var(--border)' }}>
                   {['Started', 'Cause', 'Duration', 'Status'].map(h => (
                     <th
                       key={h}
                       className="text-left"
-                      style={{ padding: '7px 12px', fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#4a5568' }}
+                      style={{ padding: '7px 12px', fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-4)' }}
                     >
                       {h}
                     </th>
@@ -324,22 +324,22 @@ export default function Alerts() {
                 {outageLog.map((entry, i) => {
                   const isActive = entry.endTime == null
                   return (
-                    <tr key={entry.id} style={{ borderTop: i === 0 ? 'none' : '0.5px solid #1a2030' }}>
+                    <tr key={entry.id} style={{ borderTop: i === 0 ? 'none' : '0.5px solid var(--border-dim)' }}>
                       <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>
-                        <span className="mono" style={{ fontSize: 11, color: '#4a5568' }}>
+                        <span className="mono" style={{ fontSize: 11, color: 'var(--text-4)' }}>
                           {fmtDate(entry.startTime)}
                         </span>
                       </td>
                       <td style={{ padding: '8px 12px' }}>
                         <span
                           className="inline-block rounded px-1.5 py-0.5 mono"
-                          style={{ fontSize: 10, background: '#1e2330', color: '#94a3b8' }}
+                          style={{ fontSize: 10, background: 'var(--border)', color: 'var(--text-3)' }}
                         >
                           {entry.cause}
                         </span>
                       </td>
                       <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>
-                        <span className="mono" style={{ fontSize: 11, color: '#4a5568' }}>
+                        <span className="mono" style={{ fontSize: 11, color: 'var(--text-4)' }}>
                           {fmtDuration(entry.startTime, entry.endTime)}
                         </span>
                       </td>
@@ -347,15 +347,15 @@ export default function Alerts() {
                         {isActive ? (
                           <span
                             className="inline-flex items-center gap-1 rounded px-1.5 py-0.5"
-                            style={{ fontSize: 10, background: '#3b0c0c', color: '#ef4444' }}
+                            style={{ fontSize: 10, background: 'var(--bad-bg)', color: 'var(--bad)' }}
                           >
-                            <span className="inline-block rounded-full" style={{ width: 5, height: 5, background: '#ef4444' }} />
+                            <span className="inline-block rounded-full" style={{ width: 5, height: 5, background: 'var(--bad)' }} />
                             Offline
                           </span>
                         ) : (
                           <span
                             className="inline-flex items-center gap-1 rounded px-1.5 py-0.5"
-                            style={{ fontSize: 10, background: '#0a3320', color: '#22c55e' }}
+                            style={{ fontSize: 10, background: 'var(--good-bg)', color: 'var(--good)' }}
                           >
                             <IconCircleCheck size={10} stroke={2} />
                             Restored

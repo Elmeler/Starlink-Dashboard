@@ -3,7 +3,6 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts'
 
-const GRID    = '#1e2330'
 const PWR_CLR = '#a78bfa'
 
 function fmtTime(ts) {
@@ -18,9 +17,9 @@ function CustomTooltip({ active, payload, label }) {
   return (
     <div
       className="rounded px-2 py-1.5 text-xs"
-      style={{ background: '#0d1017', border: '1px solid #1e2330' }}
+      style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
     >
-      <p style={{ color: '#4a5568', marginBottom: 4 }}>{fmtTime(label)}</p>
+      <p style={{ color: 'var(--text-4)', marginBottom: 4 }}>{fmtTime(label)}</p>
       <p style={{ color: PWR_CLR }}>
         Power: {val != null ? val.toFixed(1) : '—'} W
       </p>
@@ -28,7 +27,7 @@ function CustomTooltip({ active, payload, label }) {
   )
 }
 
-export default function PowerChart({ data = [], hours = 24 }) {
+export default function PowerChart({ data = [], hours = 24, height = 120 }) {
   const label = hours >= 24
     ? `${hours / 24}d`
     : `${hours}h`
@@ -41,13 +40,13 @@ export default function PowerChart({ data = [], hours = 24 }) {
           <span className="inline-block w-3 h-0.5 rounded" style={{ background: PWR_CLR }} />
           Watts
         </span>
-        <span style={{ fontSize: 10, color: '#2a3344', marginLeft: 'auto' }}>
+        <span style={{ fontSize: 10, color: 'var(--text-5)', marginLeft: 'auto' }}>
           last {label}
         </span>
       </div>
 
-      <ResponsiveContainer width="100%" height={120}>
-        <AreaChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
+      <ResponsiveContainer width="100%" height={height}>
+        <AreaChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
           <defs>
             <linearGradient id="gradPwr" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%"  stopColor={PWR_CLR} stopOpacity={0.25} />
@@ -55,23 +54,23 @@ export default function PowerChart({ data = [], hours = 24 }) {
             </linearGradient>
           </defs>
 
-          <CartesianGrid stroke={GRID} vertical={false} />
+          <CartesianGrid stroke="var(--border)" vertical={false} />
 
           <XAxis
             dataKey="timestamp"
             tickFormatter={fmtTime}
-            tick={{ fontSize: 9, fill: '#4a5568' }}
+            tick={{ fontSize: 9, fill: 'var(--text-4)' }}
             tickLine={false}
             axisLine={false}
             interval="preserveStartEnd"
             minTickGap={60}
           />
           <YAxis
-            tick={{ fontSize: 9, fill: '#4a5568' }}
+            tick={{ fontSize: 9, fill: 'var(--text-4)' }}
             tickLine={false}
             axisLine={false}
-            tickFormatter={v => `${v}W`}
-            width={32}
+            tickFormatter={v => `${v} W`}
+            width={42}
           />
 
           <Tooltip content={<CustomTooltip />} />

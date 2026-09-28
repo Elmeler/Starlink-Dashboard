@@ -18,8 +18,13 @@ function loadLog() {
  *   endTime     — Unix ms when resolved, null if still active
  */
 export function useAlertLog(currentAlerts = []) {
-  const [log, setLog] = useState(loadLog)
-  const prevKeysRef = useRef(new Set())
+  const [log, setLog] = useState(loadLog)   // lazy: loadLog() only on first render
+  // Seed from stored open entries so a page reload doesn't re-create already-active alerts
+  const prevKeysRef = useRef(null)
+  if (prevKeysRef.current === null) {
+    const stored = loadLog()
+    prevKeysRef.current = new Set(stored.filter(e => e.endTime == null).map(e => e.key))
+  }
 
   useEffect(() => {
     const now      = Date.now()
