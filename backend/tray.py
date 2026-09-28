@@ -4,8 +4,20 @@ import sys
 import threading
 import webbrowser
 import time
+import traceback
 import psutil
 from pathlib import Path
+
+# Write all output (including crashes) to a log file next to the exe.
+# This is the only way to see errors when console=False.
+_log_path = Path(os.path.expanduser("~")) / "starlink_monitor.log"
+try:
+    _log_file = open(_log_path, "w", buffering=1, encoding="utf-8")
+    sys.stdout = _log_file
+    sys.stderr = _log_file
+    print(f"Starlink Monitor starting — log: {_log_path}")
+except Exception:
+    pass
 
 import uvicorn
 from pystray import Icon, Menu, MenuItem
@@ -226,4 +238,11 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        traceback.print_exc()
+    finally:
+        if '_log_file' in dir() and not _log_file.closed:
+            _log_file.flush()
+            _log_file.close()
