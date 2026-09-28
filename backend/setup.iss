@@ -39,7 +39,7 @@ Source: "dist\Starlink Monitor\*"; DestDir: "{app}"; Flags: ignoreversion recurs
 [Icons]
 Name: "{group}\Starlink Monitor";         Filename: "{app}\Starlink Monitor.exe"
 Name: "{group}\Uninstall Starlink Monitor"; Filename: "{uninstallexe}"
-Name: "{commondesktop}\Starlink Monitor"; Filename: "{app}\Starlink Monitor.exe"; Tasks: desktopicon
+Name: "{userdesktop}\Starlink Monitor";   Filename: "{app}\Starlink Monitor.exe"; Tasks: desktopicon
 Name: "{userstartup}\Starlink Monitor";   Filename: "{app}\Starlink Monitor.exe"; Tasks: startupicon
 
 [Run]
